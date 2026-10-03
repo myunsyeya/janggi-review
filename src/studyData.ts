@@ -1,6 +1,7 @@
 // Client side of studies: the compiled JSON (public/studies, built from content/studies) and a flat node table
 // with positions for the viewer.
 import { sanOf, startFen, withBoard } from './janggi'
+import { savedToken } from './net'
 import type { Shape, StudyChapter, StudyNode } from './studyFormat'
 
 export interface StudyMeta {
@@ -9,13 +10,26 @@ export interface StudyMeta {
   topics: string[]
   description: string
   author?: string
+  /** written by a user on the site (id starts with "u-"), not an official research note */
+  user?: boolean
   created: string
   updated: string
   chapters: { id: string; name: string; topics?: string[] }[]
 }
 export interface Study extends Omit<StudyMeta, 'chapters'> {
   chapters: StudyChapter[]
+  // user studies only
+  published?: boolean
+  hidden?: boolean
+  reports?: number
+  likes?: number
+  owner?: boolean
+  admin?: boolean
+  /** the chapters' source text, for the owner's editor */
+  pgn?: { id: string; pgn: string }[]
 }
+
+export const isUserStudy = (id: string) => id.startsWith('u-')
 
 export interface ViewNode {
   id: number
@@ -35,14 +49,39 @@ export interface ViewNode {
 }
 
 let indexPromise: Promise<StudyMeta[]> | null = null
-export const loadStudyIndex = () =>
+/** The official studies (built into the site) */
+export const loadOfficialIndex = () =>
   (indexPromise ??= fetch('/studies/index.json').then((r) => (r.ok ? r.json() : [])))
 
+const authHeaders = (): Record<string, string> => {
+  const t = savedToken()
+  return t ? { Authorization: `Bearer ${t}` } : {}
+}
+
+/** Official studies and the published user studies (fetched fresh each time) */
+export async function loadStudyIndex(): Promise<StudyMeta[]> {
+  const [official, users] = await Promise.all([
+    loadOfficialIndex(),
+    fetch('/api/user-studies').then((r) => (r.ok ? r.json() : []), () => []),
+  ])
+  return [...official, ...users]
+}
+
+/** My own user studies, drafts included */
+export const loadMyStudies = (): Promise<StudyMeta[]> =>
+  fetch('/api/user-studies/mine', { headers: authHeaders() }).then((r) => (r.ok ? r.json() : []), () => [])
+
 const studies = new Map<string, Promise<Study | null>>()
-export function loadStudy(id: string) {
+export function loadStudy(id: string): Promise<Study | null> {
+  if (isUserStudy(id)) return fetch(`/api/user-studies/${id}`, { headers: authHeaders() }).then((r) => (r.ok ? r.json() : null), () => null)
   if (!studies.has(id)) studies.set(id, fetch(`/studies/${id}.json`).then((r) => (r.ok ? r.json() : null)))
   return studies.get(id)!
 }
+
+/** Names and theory positions from well-liked user studies (see server/userStudies.ts) */
+let extraPromise: Promise<{ names: PositionNames; theory: string[] }> | null = null
+const loadExtra = () =>
+  (extraPromise ??= fetch('/api/study-extra').then((r) => (r.ok ? r.json() : { names: {}, theory: [] }), () => ({ names: {}, theory: [] })))
 
 /** Flattens a chapter tree, computing every position. Node 0 is the starting position. */
 export function chapterNodes(ch: StudyChapter): ViewNode[] {
@@ -173,8 +212,8 @@ let theoryPromise: Promise<Set<string>> | null = null
  * moves marked ?, ?! or ?? and everything after them, and moves only mentioned in comments. Needs the rules loaded.
  */
 export function loadTheory() {
-  return (theoryPromise ??= loadStudyIndex().then(async (index) => {
-    const keys = new Set<string>()
+  return (theoryPromise ??= loadOfficialIndex().then(async (index) => {
+    const keys = new Set<string>((await loadExtra()).theory)
     for (const meta of index) {
       const study = await loadStudy(meta.id)
       for (const ch of study?.chapters ?? []) {
@@ -197,4 +236,13 @@ export function loadTheory() {
 export type PositionNames = Record<string, { name: string; study: string; chapter: string; path: string; moves?: string[] }>
 let namesPromise: Promise<PositionNames> | null = null
 /** Names that studies gave to positions ([%name …] in a chapter), keyed by positionKey */
-export const loadNames = () => (namesPromise ??= fetch('/studies/names.json').then((r) => (r.ok ? r.json() : {})))
+export const loadNames = () =>
+  (namesPromise ??= Promise.all([fetch('/studies/names.json').then((r) => (r.ok ? r.json() : {})), loadExtra()]).then(
+    ([official, extra]) => ({ ...extra.names, ...official }), // an official name wins
+  ))
+
+/** In-app navigation from code (the app follows popstate) */
+export function navigate(to: string) {
+  history.pushState(null, '', to)
+  dispatchEvent(new PopStateEvent('popstate'))
+}

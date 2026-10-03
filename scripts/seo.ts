@@ -3,10 +3,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { PAGES, SITE, type PageMeta } from '../src/seo.ts'
+import { NOTATION_NOTE, chapterHtml, short } from '../src/studyHtml.ts'
 
 const DIST = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'dist')
 const template = fs.readFileSync(path.join(DIST, 'index.html'), 'utf8')
 if (!template.includes('<!--seo-head-->') || !template.includes('<!--seo-body-->')) throw new Error('index.html is missing the seo placeholders')
+// the untouched app shell, for pages the game server renders (user studies, server/userStudyPages.ts)
+fs.writeFileSync(path.join(DIST, '_shell.html'), template)
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const abs = (p: string) => SITE.url + (p === '/' ? '/' : p)
@@ -157,7 +160,6 @@ const llmsLines: string[] = []
 const topicSlugs: Record<string, string> = fs.existsSync(path.join(studyDir, 'topics.json'))
   ? JSON.parse(fs.readFileSync(path.join(studyDir, 'topics.json'), 'utf8'))
   : {}
-const NOTATION_NOTE = `<p>기보는 이 사이트의 표기법으로 적었어요(H 마, E 상, C 포, R 차, K 궁, A 사, 졸·병은 글자 없음, 줄 a~i·선 1~10). + 평가는 초에게 유리하다는 뜻이에요. <a href="/notation">기보 표기법 보기</a></p>`
 
 function writePage(file: string, page: PageMeta, extra?: Extra) {
   const html = template
@@ -166,37 +168,6 @@ function writePage(file: string, page: PageMeta, extra?: Extra) {
     .replace('<!--seo-body-->', `<main class="seo-fallback">${page.body.trim()}</main>`)
   fs.mkdirSync(path.dirname(path.join(DIST, file)), { recursive: true })
   fs.writeFileSync(path.join(DIST, file), html)
-}
-const short = (s: string) => ([...s].length > 80 ? [...s].slice(0, 79).join('') + '…' : s)
-
-/**
- * Moves and comments as readable HTML: the main line in paragraphs (a new paragraph wherever there is a comment),
- * the alternatives to a move as a list right after it, deeper variations inline in parentheses.
- */
-function chapterHtml(root: StudyNode) {
-  const label = (ply: number, n: StudyNode) => `<b>${esc(`${Math.ceil(ply / 2)}${ply % 2 ? '.' : '...'} ${n.san ?? ''}${(n.glyphs ?? []).join('')}`)}</b>`
-  const inline = (start: StudyNode, ply: number): string => {
-    let out = ''
-    for (let n: StudyNode | undefined = start, p = ply; n; n = n.ch[0], p++) {
-      out += ` ${label(p, n)}`
-      if (n.comment) out += ` ${esc(n.comment)}`
-      for (const alt of n.ch.slice(1)) out += ` (${inline(alt, p + 1)})`
-    }
-    return out.trim()
-  }
-  let html = root.comment ? `<p>${esc(root.comment)}</p>` : ''
-  let para: string[] = []
-  let parent = root
-  for (let n: StudyNode | undefined = root.ch[0], p = 1; n; parent = n, n = n.ch[0], p++) {
-    para.push(label(p, n))
-    const alts = parent.ch.slice(1)
-    if (n.comment || alts.length || !n.ch.length) {
-      html += `<p>${para.join(' ')}${n.comment ? ' ' + esc(n.comment) : ''}</p>`
-      para = []
-      if (alts.length) html += `<ul>${alts.map((a) => `<li>변화: ${inline(a, p)}</li>`).join('')}</ul>`
-    }
-  }
-  return html
 }
 
 if (studyIndex.length) {

@@ -1,7 +1,7 @@
 // Study list, laid out like lichess.org/study/topic/…: sub-navigation on the left, a card grid on the right.
 import { useEffect, useMemo, useState } from 'react'
-import { api } from './net'
-import { chapterHref, loadStudyIndex, loadTopics, timeAgo, topicHref, topicPath, type StudyMeta } from './studyData'
+import { chapterHref, loadMyStudies, loadStudyIndex, loadTopics, navigate, timeAgo, topicHref, topicPath, type StudyMeta } from './studyData'
+import { api, savedToken } from './net'
 
 const SORTS = [
   ['hot', '유행하는 순'],
@@ -13,7 +13,8 @@ const SORTS = [
 ] as const
 type Sort = (typeof SORTS)[number][0]
 
-export default function StudyList({ topicSlug, active }: { topicSlug: string | null; active: boolean }) {
+export default function StudyList({ topicSlug, mine = false, active }: { topicSlug: string | null; mine?: boolean; active: boolean }) {
+  const [myStudies, setMyStudies] = useState<(StudyMeta & { published?: boolean; hidden?: boolean })[] | null>(null)
   const [all, setAll] = useState<StudyMeta[] | null>(null)
   const [likes, setLikes] = useState<Record<string, number>>({})
   const [sort, setSort] = useState<Sort>('hot')
@@ -23,11 +24,23 @@ export default function StudyList({ topicSlug, active }: { topicSlug: string | n
     loadStudyIndex().then(setAll)
     loadTopics().then(setSlugs)
   }, [])
+  useEffect(() => {
+    if (mine) loadMyStudies().then(setMyStudies)
+  }, [mine])
+  const create = async () => {
+    if (!savedToken()) return alert('로그인하면 연구를 쓸 수 있어요 (대국 화면에서 로그인)')
+    try {
+      const r = await api<{ id: string }>('/user-studies', savedToken(), {})
+      navigate(`/study/${r.id}/edit`)
+    } catch (e) {
+      alert((e as Error).message)
+    }
+  }
   // the address has the English path; the page shows the Korean name
   const topic = topicSlug ? (Object.keys(slugs).find((t) => slugs[t] === topicSlug) ?? (Object.keys(slugs).length ? topicSlug : null)) : null
   useEffect(() => {
-    if (active && (!topicSlug || topic)) document.title = `${topic ?? '모든 연구'} — 장기 연구 | 초한 장기`
-  }, [active, topic, topicSlug])
+    if (active && (!topicSlug || topic)) document.title = `${mine ? '내 연구' : (topic ?? '모든 연구')} — 장기 연구 | 초한 장기`
+  }, [active, topic, topicSlug, mine])
   useEffect(() => {
     if (!active || !all?.length) return
     api<{ likes: Record<string, number> }>(`/study-likes?ids=${all.map((s) => s.id).join(',')}`).then((r) => setLikes(r.likes), () => {})
@@ -40,7 +53,7 @@ export default function StudyList({ topicSlug, active }: { topicSlug: string | n
   }, [all])
 
   const list = useMemo(() => {
-    const rows = (all ?? []).filter((s) => !topic || s.topics.includes(topic))
+    const rows = mine ? (myStudies ?? []) : (all ?? []).filter((s) => !topic || s.topics.includes(topic))
     const like = (s: StudyMeta) => likes[s.id] ?? 0
     const time = (d: string) => new Date(d).getTime()
     const hot = (s: StudyMeta) => (like(s) + 1) / Math.pow((Date.now() - time(s.updated)) / 3_600_000 + 2, 1.5)
@@ -53,13 +66,16 @@ export default function StudyList({ topicSlug, active }: { topicSlug: string | n
       alphabetical: (a, b) => a.title.localeCompare(b.title, 'ko'),
     }
     return [...rows].sort(by[sort])
-  }, [all, topic, sort, likes])
+  }, [all, topic, sort, likes, mine, myStudies])
 
   return (
     <div className="studies">
       <aside className="studies-nav">
-        <a href="/study" className={!topic ? 'active' : ''}>
+        <a href="/study" className={!topic && !mine ? 'active' : ''}>
           모든 연구
+        </a>
+        <a href="/study/mine" className={mine ? 'active' : ''}>
+          내 연구
         </a>
         <div className="studies-nav-title">주제</div>
         {topics.map(([t, n]) => (
@@ -71,7 +87,10 @@ export default function StudyList({ topicSlug, active }: { topicSlug: string | n
 
       <section className="studies-box">
         <header className="studies-head">
-          <h1>{topic ?? '모든 연구'}</h1>
+          <h1>{mine ? '내 연구' : (topic ?? '모든 연구')}</h1>
+          <button className="btn primary study-create" onClick={create}>
+            + 연구 만들기
+          </button>
           <select value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
             {SORTS.map(([v, label]) => (
               <option key={v} value={v}>
@@ -80,7 +99,7 @@ export default function StudyList({ topicSlug, active }: { topicSlug: string | n
             ))}
           </select>
         </header>
-        {all && !list.length && <div className="muted pad">아직 연구가 없어요.</div>}
+        {(mine ? myStudies : all) && !list.length && <div className="muted pad">{mine ? '아직 쓴 연구가 없어요. 오른쪽 위의 "연구 만들기"로 시작해 보세요.' : '아직 연구가 없어요.'}</div>}
         <div className="study-grid">
           {list.map((s) => {
             // under a topic, the chapters tagged with it come first and are highlighted
@@ -92,11 +111,13 @@ export default function StudyList({ topicSlug, active }: { topicSlug: string | n
                   楚漢
                 </span>
                 <div className="study-card-main">
-                  <a className="study-card-title" href={topicHref(s, topic)}>
+                  <a className="study-card-title" href={mine ? `/study/${s.id}/edit` : topicHref(s, topic)}>
                     {s.title}
                   </a>
                   <div className="study-card-meta">
                     ♡ {likes[s.id] ?? 0} · {s.author ?? '초한 장기'} · {timeAgo(s.updated)}
+                    {s.user && <span className="study-badge">사용자 연구</span>}
+                    {mine && <span className="study-badge">{'hidden' in s && s.hidden ? '숨겨짐' : 'published' in s && s.published ? '공개' : '비공개'}</span>}
                   </div>
                   <ol className="study-card-chapters">
                     {chapters.map((c) => (

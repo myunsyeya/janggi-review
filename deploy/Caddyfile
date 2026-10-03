@@ -18,6 +18,13 @@ myunsyeya.com {
 	handle /ws* {
 		reverse_proxy 127.0.0.1:8787
 	}
+	# user studies are rendered by the game server (they change at runtime)
+	handle /study/u-* {
+		reverse_proxy 127.0.0.1:8787
+	}
+	handle /sitemap-user-studies.xml {
+		reverse_proxy 127.0.0.1:8787
+	}
 	handle {
 		# one URL per page: /analysis.html -> /analysis, /index.html -> /
 		redir /index.html / 301

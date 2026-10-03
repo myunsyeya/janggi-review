@@ -1,5 +1,4 @@
-// Studies are read-only research notes written in content/studies/ and compiled at build time
-// (scripts/studies.ts). The only server state is the like count.
+// Likes for studies (official ones from content/studies/ and user studies, see userStudies.ts).
 import type http from 'node:http'
 import type { DatabaseSync } from 'node:sqlite'
 
@@ -7,6 +6,7 @@ export interface StudyDeps {
   db: DatabaseSync
   userId: (auth: string | undefined) => number | undefined
   json: (res: http.ServerResponse, status: number, body: unknown) => void
+  onLike?: () => void
 }
 
 export function initStudies(db: DatabaseSync) {
@@ -44,6 +44,7 @@ export function handleStudies(d: StudyDeps, req: http.IncomingMessage, res: http
     if (had) db.prepare('DELETE FROM study_likes WHERE study_id = ? AND user_id = ?').run(id, me)
     else db.prepare('INSERT INTO study_likes (study_id, user_id) VALUES (?, ?)').run(id, me)
     const n = (db.prepare('SELECT COUNT(*) n FROM study_likes WHERE study_id = ?').get(id) as { n: number }).n
+    d.onLike?.()
     json(res, 200, { liked: !had, likes: n })
     return true
   }

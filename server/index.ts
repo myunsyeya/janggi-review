@@ -9,6 +9,8 @@ import { WebSocket, WebSocketServer } from 'ws'
 import { SETUPS, type Setup, choToMove, loadRules, sanOf, startFen, withBoard } from '../src/janggi.ts'
 import { INITIAL, update, type Rating } from './glicko2.ts'
 import { handleStudies, initStudies, type StudyDeps } from './studies.ts'
+import { clearExtra, handleUserStudies, initUserStudies, type UserStudyDeps } from './userStudies.ts'
+import { handleUserStudyPage, handleUserStudySitemap } from './userStudyPages.ts'
 
 const PORT = 8787
 const INITIAL_MS = 10 * 60 * 1000
@@ -63,6 +65,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS games_han ON games(han_id, ended);
 `)
 initStudies(db)
+initUserStudies(db)
 
 // added later: profile pictures (version = upload time, null = none)
 if (!(db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).some((c) => c.name === "avatar"))
@@ -479,7 +482,8 @@ function gameSummary(row: Record<string, unknown>) {
   }
 }
 
-const studyDeps: StudyDeps = { db, userId: (auth) => userForToken(auth)?.id, json }
+const studyDeps: StudyDeps = { db, userId: (auth) => userForToken(auth)?.id, json, onLike: clearExtra }
+const userStudyDeps: UserStudyDeps = { db, user: (auth) => userForToken(auth), json, readBody, dist: path.join(ROOT, '../dist'), dataDir: DATA }
 
 const server = http.createServer(async (req, res) => {
   try {
@@ -495,6 +499,9 @@ const server = http.createServer(async (req, res) => {
         ...presenceStats(),
       })
     }
+    // user studies' crawlable pages and sitemap (Caddy proxies these paths here)
+    if (url.pathname.startsWith('/study/u-') && handleUserStudyPage(userStudyDeps, req, res, url)) return
+    if (url.pathname === '/sitemap-user-studies.xml') return handleUserStudySitemap(userStudyDeps, res)
     if (req.method === 'POST' && url.pathname === '/api/login') {
       if (rateLimited(ip)) return json(res, 429, { error: '잠시 후 다시 시도해 주세요' })
       const body = await readBody(req)
@@ -559,6 +566,7 @@ const server = http.createServer(async (req, res) => {
       return res.end(fs.readFileSync(file))
     }
     if (url.pathname.startsWith('/api/study-likes') && handleStudies(studyDeps, req, res, url, auth)) return
+    if ((url.pathname.startsWith('/api/user-studies') || url.pathname === '/api/study-extra') && (await handleUserStudies(userStudyDeps, req, res, url, auth))) return
     if (url.pathname === "/api/explorer") {
       const fen = url.searchParams.get("fen") ?? ""
       const moves = [...(explorer.get(positionKey(fen)) ?? new Map<string, Tally>())]

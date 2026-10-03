@@ -4,3 +4,4 @@ Disallow: /api/
 Disallow: /ws
 
 Sitemap: https://myunsyeya.com/sitemap.xml
+Sitemap: https://myunsyeya.com/sitemap-user-studies.xml

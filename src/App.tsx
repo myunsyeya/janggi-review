@@ -4,6 +4,7 @@ import Play from './Play'
 import Ranking from './Ranking'
 import StudyList from './StudyList'
 import StudyPage from './StudyPage'
+import StudyEditor from './StudyEditor'
 import { usePresence } from './presence'
 import { loadRules } from './janggi'
 import { PAGES, pageFor } from './seo'
@@ -13,13 +14,14 @@ import { IconAnalysis, IconLearn, IconPlay, IconRanking } from './ui'
 type AppPage = 'play' | 'analysis' | 'ranking'
 const APP_PAGES: Partial<Record<string, AppPage>> = { '/': 'play', '/analysis': 'analysis', '/ranking': 'ranking' }
 const DOC_PATHS = new Set(PAGES.filter((p) => p.doc).map((p) => p.path))
-// /study, /study/topic/<topic>, /study/<id>, /study/<id>/<chapter>
+// /study, /study/mine, /study/topic/<topic>, /study/<id>, /study/<id>/<chapter>, /study/<id>/edit
 function studyRoute(path: string) {
-  if (path === '/study') return { list: true as const, topic: null }
+  if (path === '/study') return { list: true as const, topic: null, mine: false }
+  if (path === '/study/mine') return { list: true as const, topic: null, mine: true }
   const t = /^\/study\/topic\/([^/]+)$/.exec(path)
-  if (t) return { list: true as const, topic: t[1] }
+  if (t) return { list: true as const, topic: t[1], mine: false }
   const m = /^\/study\/([a-z0-9-]+)(?:\/([\w-]+))?$/.exec(path)
-  if (m) return { list: false as const, id: m[1], chapter: m[2] ?? null }
+  if (m) return { list: false as const, id: m[1], chapter: m[2] === 'edit' ? null : (m[2] ?? null), edit: m[2] === 'edit' }
   return null
 }
 const known = (path: string) => path in APP_PAGES || DOC_PATHS.has(path) || !!studyRoute(path)
@@ -179,10 +181,15 @@ export default function App() {
       </main>
       {study?.list && (
         <main className="page">
-          <StudyList topicSlug={study.topic} active />
+          <StudyList topicSlug={study.topic} mine={study.mine} active />
         </main>
       )}
-      {study && !study.list && (
+      {study && !study.list && study.edit && (
+        <main className="page">
+          <StudyEditor id={study.id} active rulesReady={rulesReady} />
+        </main>
+      )}
+      {study && !study.list && !study.edit && (
         <main className="page">
           <StudyPage id={study.id} chapterId={study.chapter} at={new URLSearchParams(search).get('moves')} active rulesReady={rulesReady} />
         </main>

@@ -28,6 +28,9 @@ interface Props {
   premoves?: string[] // queued premoves; the shown fen already has them applied
   onCancel?: () => void
   onMove: (uci: string) => void
+  /** controlled right-click drawings (the study editor keeps them per move); otherwise the board keeps its own */
+  drawn?: Arrow[]
+  onDraw?: (shapes: Arrow[]) => void
 }
 
 function octagon(r: number) {
@@ -52,6 +55,8 @@ export default function Board({
   mover,
   premoves = [],
   onCancel,
+  drawn,
+  onDraw,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [selected, setSelected] = useState<string | null>(null)
@@ -61,14 +66,17 @@ export default function Board({
   const choTurn = choToMove(fen)
 
   // right-click drawings (arrows, and circles when from === to)
-  const [shapes, setShapes] = useState<Arrow[]>([])
+  const [ownShapes, setOwnShapes] = useState<Arrow[]>([])
+  const shapes = onDraw ? (drawn ?? []) : ownShapes
+  const setShapes = (next: Arrow[]) => (onDraw ? undefined : setOwnShapes(next))
   const [drawStart, setDrawStart] = useState<{ sq: string; color: string } | null>(null)
-  const toggleShape = (s: Arrow) =>
-    setShapes((all) => {
-      const same = all.find((a) => a.from === s.from && a.to === s.to)
-      const rest = all.filter((a) => a !== same)
-      return same && same.color === s.color ? rest : [...rest, s]
-    })
+  const toggleShape = (s: Arrow) => {
+    const same = shapes.find((a) => a.from === s.from && a.to === s.to)
+    const rest = shapes.filter((a) => a !== same)
+    const next = same && same.color === s.color ? rest : [...rest, s]
+    if (onDraw) onDraw(next)
+    else setOwnShapes(next)
+  }
 
   // reset selection and drawings when the position changes
   const [lastFen, setLastFen] = useState(fen)

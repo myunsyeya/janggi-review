@@ -40,6 +40,15 @@ files `01-english-name.pgn`, `02-…` (the name is the chapter's address; topics
 and games then show that name and link to the chapter (position-based; one name per position). Moves written with a move number inside a comment
 (`… 2...Hd8 3. Hg3 …`) become clickable in the viewer.
 
+### User studies
+
+Logged-in users write their own studies at `/study/<id>/edit` (moves on the board, comments, glyphs, right-drag
+drawings, position names, chapters with setups). They are stored in the game server's database as the same text
+format and checked with the same parser (`server/userStudies.ts`). Likes decide how far a user study reaches:
+3 likes and it is indexed (server-rendered page, `/sitemap-user-studies.xml`), 5 likes and its position names and moves
+count for opening names and theory (an official name wins). 3 reports take a study off the lists; admins
+(`server/data/admins.txt`, one `nick#tag` per line) can hide, unhide or delete any study.
+
 ### Daily research
 
 `scripts/research-run.sh` runs once a day (launchd `com.myunsyeya.janggi-research`, 05:17). Claude Code reads

@@ -6,7 +6,7 @@ import { useOpening } from './openingNames'
 import { api, savedToken } from './net'
 import { isPass, parsePieces, parseUci, withBoard } from './janggi'
 import { moveSound, playSound } from './sound'
-import { GLYPH_COLOR, SHAPE_COLOR, chapterHref, chapterNodes, loadStudy, loadTopics, moveLabel, topicHref, topicPath, type Study, type ViewNode } from './studyData'
+import { GLYPH_COLOR, SHAPE_COLOR, navigate, chapterHref, chapterNodes, loadStudy, loadTopics, moveLabel, topicHref, topicPath, type Study, type ViewNode } from './studyData'
 import { IconFirst, IconLast, IconNext, IconPrev, useHeldKey } from './ui'
 
 export default function StudyPage({
@@ -114,6 +114,34 @@ export default function StudyPage({
 
   const arrows: Arrow[] = (node.shapes ?? []).map((s) => ({ from: s.from, to: s.to, color: SHAPE_COLOR[s.color] }))
 
+  const report = async () => {
+    const reason = prompt('신고 사유를 적어 주세요 (스팸, 욕설 등)')
+    if (reason === null) return
+    try {
+      await api(`/user-studies/${id}/report`, savedToken(), { reason })
+      alert('신고했어요. 고마워요.')
+    } catch (e) {
+      alert((e as Error).message)
+    }
+  }
+  const adminHide = async () => {
+    try {
+      await api(`/user-studies/${id}/hide`, savedToken(), { hidden: !study.hidden })
+      location.reload()
+    } catch (e) {
+      alert((e as Error).message)
+    }
+  }
+  const adminDelete = async () => {
+    if (!confirm('이 연구를 지울까요?')) return
+    try {
+      await api(`/user-studies/${id}/delete`, savedToken(), {})
+      navigate('/study')
+    } catch (e) {
+      alert((e as Error).message)
+    }
+  }
+
   const toggleLike = async () => {
     try {
       const r = await api<{ liked: boolean; likes: number }>(`/study-likes/${id}`, savedToken(), {})
@@ -162,6 +190,20 @@ export default function StudyPage({
             {like?.mine ? '♥' : '♡'} {like?.n ?? 0}
           </button>
         </div>
+        {study.user && (
+          <div className="study-byline">
+            <span>
+              {study.author} · 사용자 연구
+              {study.owner && !study.published && ' · 비공개 초안 (나만 보여요)'}
+              {study.hidden && ' · 운영자가 숨긴 연구'}
+              {(study.owner || study.admin) && !!study.reports && ` · 신고 ${study.reports}건`}
+            </span>
+            {study.owner && <a href={`/study/${study.id}/edit`}>편집</a>}
+            {!study.owner && <button onClick={report}>신고</button>}
+            {study.admin && <button onClick={adminHide}>{study.hidden ? '숨김 풀기' : '숨기기'}</button>}
+            {study.admin && <button onClick={adminDelete}>지우기</button>}
+          </div>
+        )}
         <div className="study-topics">
           {study.topics.map((t) => (
             <a
