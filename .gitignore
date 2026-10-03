@@ -34,3 +34,6 @@ public/studies/
 
 # test switch for scripts/research-run.sh
 research/.test-run
+
+# rendered link-preview images, keyed by content (scripts/og-studies.ts)
+.cache/

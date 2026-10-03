@@ -80,6 +80,7 @@ server/         game server (Node 24 runs the TypeScript directly)
   glicko2.ts      Glicko-2
 scripts/
   studies.ts      build: compiles content/studies into public/studies/*.json (fails on any illegal move)
+  og-studies.ts   build: link-preview image per study chapter (end of its main line), cached in .cache/og
   seo.ts          post-build: pre-rendered HTML per page and per study chapter, sitemap.xml, 404.html
   setup-engine.sh copies the engine files and downloads the janggi NNUE (checksum verified)
   og-image.mjs    renders public/og.png

@@ -22,6 +22,8 @@ export interface PageMeta {
   priority: number
   /** Short static content for crawlers that do not run JavaScript (HTML, shown until the app loads). */
   body: string
+  /** Link-preview image (path from the site root); the site's og.png when missing */
+  image?: string
   /** A document page: the app shows `body` itself (licenses, policies, articles such as opening guides). */
   doc?: boolean
 }

@@ -53,7 +53,7 @@ function jsonLd(page: PageMeta, extra: Extra = {}) {
     inLanguage: SITE.language,
     isPartOf: { '@id': `${SITE.url}/#website` },
     about: { '@id': extra.about ?? `${SITE.url}/#app` },
-    primaryImageOfPage: SITE.url + SITE.image,
+    primaryImageOfPage: SITE.url + (page.image ?? SITE.image),
   }
   const graph: object[] = [website, app, webpage, ...(extra.nodes ?? [])]
   if (extra.crumbs) {
@@ -76,7 +76,7 @@ function jsonLd(page: PageMeta, extra: Extra = {}) {
 
 function head(page: PageMeta, extra?: Extra) {
   const url = abs(page.path)
-  const image = SITE.url + SITE.image
+  const image = SITE.url + (page.image ?? SITE.image)
   return [
     `<meta name="description" content="${esc(page.description)}" />`,
     `<link rel="canonical" href="${url}" />`,
@@ -90,7 +90,7 @@ function head(page: PageMeta, extra?: Extra) {
     `<meta property="og:image" content="${image}" />`,
     `<meta property="og:image:width" content="1200" />`,
     `<meta property="og:image:height" content="630" />`,
-    `<meta property="og:image:alt" content="${esc(SITE.name)} 장기판" />`,
+    `<meta property="og:image:alt" content="${esc(page.image ? page.title.split(' | ')[0] : SITE.name + ' 장기판')}" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${esc(page.title)}" />`,
     `<meta name="twitter:description" content="${esc(page.description)}" />`,
@@ -250,6 +250,7 @@ if (studyIndex.length) {
         description: short(i === 0 ? summary : `${ch.name}. ${summary}`),
         changefreq: 'monthly',
         priority: 0.7,
+        image: fs.existsSync(path.join(DIST, 'og/study', study.id, `${ch.id}.png`)) ? `/og/study/${study.id}/${ch.id}.png` : undefined,
         body: `<h1>${esc(study.title)}: ${esc(ch.name)}</h1>${NOTATION_NOTE}<h2>수순과 해설</h2>${chapterHtml(ch.root)}${nav}`,
       }
       writePage(i === 0 ? `study/${study.id}.html` : `study/${study.id}/${ch.id}.html`, page, {
@@ -276,7 +277,7 @@ if (studyIndex.length) {
             publisher: { '@type': 'Organization', name: SITE.name, url: `${SITE.url}/` },
             datePublished: study.created,
             dateModified: study.updated,
-            image: SITE.url + SITE.image,
+            image: SITE.url + (page.image ?? SITE.image),
             keywords: ['장기', 'Janggi', ...topics].join(', '),
             about: [{ '@type': 'Thing', name: '장기 포진 (Janggi opening)' }, ...topics.map((t) => ({ '@type': 'Thing', name: t }))],
           },
