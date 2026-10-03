@@ -84,7 +84,7 @@ function head(page: PageMeta, extra?: Extra) {
     `<meta name="description" content="${esc(page.description)}" />`,
     `<link rel="canonical" href="${url}" />`,
     `<meta name="robots" content="index, follow, max-image-preview:large" />`,
-    `<meta property="og:type" content="website" />`,
+    `<meta property="og:type" content="${page.ogType ?? 'website'}" />`,
     `<meta property="og:site_name" content="${esc(SITE.name)}" />`,
     `<meta property="og:locale" content="${SITE.locale}" />`,
     `<meta property="og:url" content="${url}" />`,
@@ -221,6 +221,7 @@ if (studyIndex.length) {
         description: short(i === 0 ? summary : `${ch.name}. ${summary}`),
         changefreq: 'monthly',
         priority: 0.7,
+        ogType: 'article',
         image: fs.existsSync(path.join(DIST, 'og/study', study.id, `${ch.id}.png`)) ? `/og/study/${study.id}/${ch.id}.png` : undefined,
         body: `<h1>${esc(study.title)}: ${esc(ch.name)}</h1>${NOTATION_NOTE}<h2>수순과 해설</h2>${chapterHtml(ch.root)}${nav}`,
       }

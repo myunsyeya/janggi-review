@@ -5,6 +5,7 @@ import Ranking from './Ranking'
 import StudyList from './StudyList'
 import StudyPage from './StudyPage'
 import StudyEditor from './StudyEditor'
+import { syncHead } from './headSync'
 import { usePresence } from './presence'
 import { loadRules } from './janggi'
 import { PAGES, pageFor } from './seo'
@@ -82,6 +83,10 @@ export default function App() {
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
+
+  useEffect(() => {
+    void syncHead(path)
+  }, [path])
 
   useEffect(() => {
     const meta = pageFor(path)

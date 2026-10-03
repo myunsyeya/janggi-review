@@ -24,6 +24,8 @@ export interface PageMeta {
   body: string
   /** Link-preview image (path from the site root); the site's og.png when missing */
   image?: string
+  /** og:type; 'website' when missing ('article' for study chapters) */
+  ogType?: 'website' | 'article'
   /** A document page: the app shows `body` itself (licenses, policies, articles such as opening guides). */
   doc?: boolean
 }
