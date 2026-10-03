@@ -1,5 +1,5 @@
 import type { GameImport } from './Analysis'
-import { replay } from './janggi'
+import { replay, type GameResult } from "./janggi"
 import { api, type GameSummary, type Side } from './net'
 
 /** Fetches a finished game and turns it into an analysis-board import with review on. */
@@ -12,6 +12,8 @@ export async function loadGameImport(id: string): Promise<GameImport> {
     cho: `${g.cho.nick}#${g.cho.tag}`,
     han: `${g.han.nick}#${g.han.tag}`,
     review: true,
+    result: g.result as GameResult,
+    reason: g.reason,
   }
 }
 

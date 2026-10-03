@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Board from './Board'
 import MoveList from './MoveList'
 import type { GameImport } from './Analysis'
-import { type Setup, isPass, material, parsePieces, parseUci, replay, startFen, withBoard } from "./janggi"
+import { type Setup, isPass, material, resultLabel, parsePieces, parseUci, replay, startFen, withBoard } from "./janggi"
 import { moveSound, playSound } from "./sound"
 import { Conn, api, saveToken, savedToken, type GameSummary, type GameView, type PublicUser, type Side } from './net'
 import { treeFromMoves } from "./tree"
@@ -273,6 +273,7 @@ export default function Play({
 
         {inGame || game?.phase === 'over' ? (
           <MoveList
+            result={game?.phase === "over" && game.result ? resultLabel(game.result, game.reason) : null}
             tree={tree}
             current={shownPly === 0 ? 0 : shownPly}
             classes={new Map()}
@@ -315,6 +316,8 @@ export default function Play({
                     cho: tagged(game.cho),
                     han: tagged(game.han),
                     review: true,
+                    result: game.result,
+                    reason: game.reason,
                   })
                 }
               >

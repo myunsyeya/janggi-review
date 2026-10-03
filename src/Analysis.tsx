@@ -18,6 +18,8 @@ import {
   sanOf,
   startFen,
   replay,
+  resultLabel,
+  type GameResult,
   withBoard,
 } from './janggi'
 import { CLASS_INFO, REVIEW_DEPTH, REVIEW_MULTIPV, choWin, reviewMove, type MoveReview, type PosEval, type PrevMove } from "./review"
@@ -34,6 +36,8 @@ export interface GameImport {
   cho?: string
   han?: string
   review?: boolean
+  result?: GameResult | null
+  reason?: string | null
 }
 
 export default function Analysis({
@@ -67,6 +71,7 @@ export default function Analysis({
   const reviewing = reviewRun !== null
   // review mode: on after the first full review; then every visited move gets judged on demand
   const [reviewOn, setReviewOn] = useState(false)
+  const [loadedResult, setLoadedResult] = useState<{ at: number; label: string } | null>(null)
   const [fullRun, setFullRun] = useState(false)
 
   useEffect(() => {
@@ -248,6 +253,8 @@ export default function Analysis({
     setTree(t)
     setCur(ROOT)
     setNames({ cho: load.cho ?? '초 (楚)', han: load.han ?? '한 (漢)' })
+    // the stored result belongs to the loaded line's last move (it may be a resignation, not visible on the board)
+    setLoadedResult(load.result ? { at: load.moves.length ? t.nextId - 1 : ROOT, label: resultLabel(load.result, load.reason) } : null)
     if (load.review) {
       setTab('review')
       runFullReview(load.moves, load.startFen)
@@ -303,6 +310,18 @@ export default function Analysis({
     if (need.length) startReview(need.map((f) => ({ fen: f })), need[0])
   }, [tab, reviewOn, fullRun, reviewing, cur, prevFen, fen, evals, startReview])
 
+  // result shown after the main line: the loaded game's result, or the rules' verdict if the line ends the game
+  const mainEnd = main.at(-1) ?? ROOT
+  const mainResult = useMemo(() => {
+    if (loadedResult && loadedResult.at === mainEnd) return loadedResult.label
+    if (!rulesReady || mainEnd === ROOT) return null
+    return withBoard(tree.nodes[mainEnd].fen, (b) => {
+      if (!b.isGameOver()) return null
+      const reason = b.isCheck() && b.numberLegalMoves() === 0 ? "외통" : "규칙"
+      return resultLabel(b.result() as GameResult, reason)
+    })
+  }, [loadedResult, mainEnd, rulesReady, tree])
+
   // captured pieces and points (with 덤) for the player tags
   const mat = useMemo(() => material(fen), [fen])
   const matFor = (s: "cho" | "han") => ({ ...mat[s], lead: mat[s].score - mat[s === "cho" ? "han" : "cho"].score })
@@ -333,7 +352,8 @@ export default function Analysis({
     setReviewRun(null)
     setTree(newTree(startFen(choSetup, hanSetup)))
     setCur(ROOT)
-    setNames({ cho: '초 (楚)', han: '한 (漢)' })
+    setNames({ cho: "초 (楚)", han: "한 (漢)" })
+    setLoadedResult(null)
     setShowSetup(false)
   }
 
@@ -471,6 +491,7 @@ export default function Analysis({
         )}
 
         <MoveList
+          result={mainResult}
           tree={tree}
           current={cur}
           classes={classes}

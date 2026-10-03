@@ -11,13 +11,14 @@ interface Props {
   onDelete?: (id: number) => void
   onPromote?: (id: number) => void
   emptyText?: string
+  result?: string | null // e.g. "1-0 (초 승) · 기권", shown after the last move
 }
 
 // The game always starts with 초, so odd plies are 초's moves.
 const isChoPly = (ply: number) => ply % 2 === 1
 const moveNo = (ply: number) => Math.ceil(ply / 2)
 
-export default function MoveList({ tree, current, classes, onSelect, onDelete, onPromote, emptyText }: Props) {
+export default function MoveList({ tree, current, classes, onSelect, onDelete, onPromote, emptyText, result }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const [menu, setMenu] = useState<{ id: number; x: number; y: number } | null>(null)
 
@@ -138,6 +139,7 @@ export default function MoveList({ tree, current, classes, onSelect, onDelete, o
     <div className="movelist" ref={ref}>
       {items.length === 0 && <div className="movelist-empty">{emptyText ?? '판 위에서 수를 두면 여기에 기보가 쌓여요.'}</div>}
       {items}
+      {result && <div className="move-result">{result}</div>}
       {menu && (
         <div className="ctx-menu" style={{ left: menu.x, top: menu.y }} onPointerDown={(e) => e.stopPropagation()}>
           {!isMainline(tree, menu.id) && onPromote && (

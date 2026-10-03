@@ -208,3 +208,11 @@ export function material(fen: string): { cho: SideMaterial; han: SideMaterial } 
     han: { score: have.han, captured: taken('cho') },
   }
 }
+
+export type GameResult = '1-0' | '0-1' | '1/2-1/2'
+
+/** "1-0 (초 승)" style, as shown at the end of the move list. */
+export function resultLabel(r: GameResult, reason?: string | null) {
+  const head = r === '1-0' ? '1-0 (초 승)' : r === '0-1' ? '0-1 (한 승)' : '½-½ (무승부)'
+  return reason ? `${head} · ${reason}` : head
+}

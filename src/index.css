@@ -1660,3 +1660,11 @@ button {
 .cap-piece.same {
   margin-left: -9px;
 }
+
+.move-result {
+  text-align: center;
+  padding: 10px 8px;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--text);
+}
