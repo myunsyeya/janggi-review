@@ -32,6 +32,10 @@ myunsyeya.com {
 		file_server
 	}
 	log {
-		output file /Users/myunsyeya/Library/Logs/caddy/access.log
+		# privacy policy (/privacy): access logs are split into files and files older than 90 days are deleted
+		output file /Users/myunsyeya/Library/Logs/caddy/access.log {
+			roll_size 5MiB
+			roll_keep_for 90d
+		}
 	}
 }

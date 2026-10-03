@@ -4,79 +4,95 @@ import Play from './Play'
 import Ranking from './Ranking'
 import { usePresence } from './presence'
 import { loadRules } from './janggi'
-import { pageFor } from './seo'
+import { PAGES, pageFor } from './seo'
 import { IconAnalysis, IconPlay, IconRanking } from './ui'
 
-type Page = 'play' | 'analysis' | 'ranking'
-const PATHS: Record<Page, string> = { play: '/', analysis: '/analysis', ranking: '/ranking' }
+type AppPage = 'play' | 'analysis' | 'ranking'
+const APP_PAGES: Partial<Record<string, AppPage>> = { '/': 'play', '/analysis': 'analysis', '/ranking': 'ranking' }
+const DOC_PATHS = new Set(PAGES.filter((p) => p.doc).map((p) => p.path))
+const known = (path: string) => path in APP_PAGES || DOC_PATHS.has(path)
 
-function pageFromLocation(): Page {
+function pathFromLocation(): string {
   // old links used #analysis / #ranking
-  const legacy = location.hash.slice(1)
-  if (legacy === 'analysis' || legacy === 'ranking' || legacy === 'play') {
-    history.replaceState(null, '', PATHS[legacy])
+  const legacy = '/' + location.hash.slice(1)
+  if (location.hash && (legacy === '/analysis' || legacy === '/ranking')) {
+    history.replaceState(null, '', legacy)
     return legacy
   }
-  const found = (Object.keys(PATHS) as Page[]).find((p) => PATHS[p] === location.pathname)
-  if (!found) history.replaceState(null, "", "/") // unknown address (served as a 404 page): show the home page
-  return found ?? "play"
+  if (location.hash === '#play') history.replaceState(null, '', '/')
+  if (known(location.pathname)) return location.pathname
+  history.replaceState(null, '', '/') // unknown address (served as a 404 page): show the home page
+  return '/'
 }
 
 export default function App() {
   const [rulesReady, setRulesReady] = useState(false)
-  const [page, setPage] = useState<Page>(pageFromLocation)
+  const [path, setPath] = useState(pathFromLocation)
   const [load, setLoad] = useState<GameImport | null>(null)
   const presence = usePresence()
   const [seek, setSeek] = useState(0) // bumped to make the play page join the queue
+  const page: AppPage | 'doc' = APP_PAGES[path] ?? 'doc'
 
   useEffect(() => {
     loadRules().then(() => setRulesReady(true))
-    const onPop = () => setPage(pageFromLocation())
+    const onPop = () => setPath(pathFromLocation())
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
 
   useEffect(() => {
-    const meta = pageFor(PATHS[page])
+    const meta = pageFor(path)
     if (meta) document.title = meta.title
-  }, [page])
+    if (page === 'doc') window.scrollTo(0, 0)
+  }, [path, page])
 
-  const go = (p: Page) => {
-    if (location.pathname !== PATHS[p]) history.pushState(null, '', PATHS[p])
-    setPage(p)
+  const go = (to: string) => {
+    if (location.pathname !== to) history.pushState(null, '', to)
+    setPath(to)
   }
 
-  // real links (crawlable, open in a new tab with a modifier key), handled in-app on a plain click
-  const NavLink = ({ to, children }: { to: Page; children: ReactNode }) => (
-    <a
-      href={PATHS[to]}
-      className={page === to ? 'active' : ''}
-      onClick={(e: MouseEvent) => {
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
-        e.preventDefault()
-        go(to)
-      }}
-    >
+  /** In-app navigation for plain clicks on links to our own pages; other clicks behave normally. */
+  const followLink = (e: MouseEvent) => {
+    const a = (e.target as HTMLElement).closest('a')
+    if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+    const url = new URL(a.href, location.href)
+    if (url.origin !== location.origin || !known(url.pathname)) return
+    e.preventDefault()
+    go(url.pathname)
+  }
+
+  const NavLink = ({ to, children, className = '' }: { to: string; children: ReactNode; className?: string }) => (
+    <a href={to} className={`${className} ${path === to ? 'active' : ''}`}>
       {children}
     </a>
   )
 
+  const doc = page === 'doc' ? pageFor(path) : undefined
+
   return (
-    <div className="shell">
+    <div className="shell" onClick={followLink}>
       <nav className="sidebar">
         <div className="logo">楚漢</div>
-        <NavLink to="play">
+        <NavLink to="/">
           <IconPlay />
           <span>대국</span>
         </NavLink>
-        <NavLink to="analysis">
+        <NavLink to="/analysis">
           <IconAnalysis />
           <span>분석</span>
         </NavLink>
-        <NavLink to="ranking">
+        <NavLink to="/ranking">
           <IconRanking />
           <span>순위</span>
         </NavLink>
+        <div className="sidebar-foot">
+          <NavLink to="/licenses" className="foot-link">
+            라이선스
+          </NavLink>
+          <NavLink to="/privacy" className="foot-link">
+            개인정보
+          </NavLink>
+        </div>
       </nav>
       <main className="page" hidden={page !== 'play'}>
         <Play
@@ -86,7 +102,7 @@ export default function App() {
           active={page === 'play'}
           onReview={(g) => {
             setLoad(g)
-            go('analysis')
+            go('/analysis')
           }}
         />
       </main>
@@ -95,7 +111,7 @@ export default function App() {
           active={page === 'ranking'}
           onReview={(g) => {
             setLoad(g)
-            go('analysis')
+            go('/analysis')
           }}
         />
       </main>
@@ -106,10 +122,16 @@ export default function App() {
           load={load}
           onNewGame={() => {
             setSeek((s) => s + 1)
-            go('play')
+            go('/')
           }}
         />
       </main>
+      {doc && (
+        <main className="page">
+          {/* our own static HTML from src/docs.ts */}
+          <article className="doc" dangerouslySetInnerHTML={{ __html: doc.body }} />
+        </main>
+      )}
     </div>
   )
 }

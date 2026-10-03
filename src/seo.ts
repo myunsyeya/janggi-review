@@ -1,6 +1,7 @@
 // Site and page metadata. Used by the app (document titles) and by scripts/seo.ts at build time,
 // which writes one pre-rendered HTML file per page plus sitemap.xml. New content pages (e.g. openings)
 // only need an entry here.
+import { LICENSES_PAGE, PRIVACY_PAGE } from './docs.ts'
 
 export const SITE = {
   name: '초한 장기',
@@ -21,6 +22,8 @@ export interface PageMeta {
   priority: number
   /** Short static content for crawlers that do not run JavaScript (HTML, shown until the app loads). */
   body: string
+  /** A document page: the app shows `body` itself (licenses, policies, articles such as opening guides). */
+  doc?: boolean
 }
 
 export const PAGES: PageMeta[] = [
@@ -65,6 +68,8 @@ export const PAGES: PageMeta[] = [
 <p>초한 장기의 레이팅 대국 결과로 매겨지는 Glicko-2 순위예요. 닉네임으로 플레이어를 찾아 승·무·패, 승률, 최근 대국을 볼 수 있고, 대국을 누르면 AI 게임 리뷰로 열립니다.</p>
 <nav><a href="/">온라인 대국</a> · <a href="/analysis">장기 분석판</a></nav>`,
   },
+  LICENSES_PAGE,
+  PRIVACY_PAGE,
 ]
 
 export const pageFor = (path: string) => PAGES.find((p) => p.path === path)

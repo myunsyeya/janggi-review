@@ -1816,3 +1816,100 @@ button {
 .seo-fallback a {
   color: #81b64c;
 }
+
+/* --- document pages (licenses, privacy, later: opening guides) ------------------------- */
+
+.doc {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 40px 28px 80px;
+  line-height: 1.75;
+  font-size: 15px;
+  color: #ffffffd0;
+}
+.doc h1 {
+  font-size: 28px;
+  color: #fff;
+  margin: 0 0 20px;
+}
+.doc h2 {
+  font-size: 18px;
+  color: #fff;
+  margin: 34px 0 10px;
+  padding-top: 18px;
+  border-top: 1px solid var(--panel-line);
+}
+.doc a {
+  color: #8fc25a;
+}
+.doc code {
+  background: #ffffff14;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.doc ul {
+  padding-left: 20px;
+}
+.doc li {
+  margin: 6px 0;
+}
+.doc table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin: 8px 0;
+}
+.doc th,
+.doc td {
+  text-align: left;
+  vertical-align: top;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--panel-line);
+}
+.doc th {
+  color: #fff;
+  background: #ffffff0a;
+}
+.doc nav {
+  margin-top: 40px;
+  color: var(--muted);
+}
+
+.sidebar-foot {
+  margin-top: auto;
+  padding: 10px 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sidebar .foot-link {
+  padding: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #ffffff66;
+}
+.sidebar .foot-link.active,
+.sidebar .foot-link:hover {
+  background: none;
+  color: #ffffffcc;
+}
+@media (max-width: 900px) {
+  .sidebar-foot {
+    margin: 0 0 0 auto;
+    flex-direction: row;
+    padding: 0 8px;
+    align-items: center;
+  }
+}
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+@media (max-width: 900px) {
+  .sidebar {
+    position: static;
+    height: auto;
+  }
+}
