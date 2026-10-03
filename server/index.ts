@@ -255,6 +255,7 @@ function startGame(a: number, b: number) {
     started: Date.now(),
   }
   games.set(g.id, g)
+  presenceChanged()
   activeGameOf.set(choId, g.id)
   activeGameOf.set(hanId, g.id)
   schedule(g)
@@ -353,12 +354,14 @@ function finish(g: Game, result: NonNullable<Game['result']>, reason: string) {
   activeGameOf.delete(cho.id)
   activeGameOf.delete(han.id)
   broadcast(g)
+  presenceChanged()
   setTimeout(() => games.delete(g.id), 10 * 60 * 1000)
 }
 
 // --- matchmaking ---------------------------------------------------------------
 
 function queueState(userId: number) {
+  presenceChanged()
   send(userId, { t: 'queue', waiting: queue.includes(userId), count: queue.length })
 }
 
@@ -452,8 +455,7 @@ const server = http.createServer(async (req, res) => {
       const live = [...games.values()].filter((g) => g.phase !== "over")
       return json(res, 200, {
         liveGames: live.map((g) => ({ id: g.id, phase: g.phase, moves: g.moves.length, cho: g.players.cho.nick, han: g.players.han.nick })),
-        queue: queue.length,
-        online: sockets.size,
+        ...presenceStats(),
       })
     }
     if (req.method === 'POST' && url.pathname === '/api/login') {
@@ -554,6 +556,12 @@ const wss = new WebSocketServer({ noServer: true, maxPayload: 4096 })
 
 server.on('upgrade', (req, socket, head) => {
   const url = new URL(req.url ?? '/', 'http://x')
+  if (url.pathname === "/ws/presence") {
+    // every open tab, logged in or not, for the online counter; v = random per-browser id
+    const v = url.searchParams.get("v") ?? ""
+    if (!/^[A-Za-z0-9]{8,32}$/.test(v)) return socket.destroy()
+    return wss.handleUpgrade(req, socket, head, (ws) => onPresence(ws, v))
+  }
   const user = url.pathname === '/ws' ? userForToken(url.searchParams.get('token')) : undefined
   if (!user) {
     socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n')
@@ -563,9 +571,45 @@ server.on('upgrade', (req, socket, head) => {
   wss.handleUpgrade(req, socket, head, (ws) => onConnect(ws, user.id))
 })
 
+// --- presence (online counter) ---------------------------------------------------------
+
+const presence = new Map<WebSocket, string>() // socket -> browser id
+let presenceTimer: NodeJS.Timeout | undefined
+
+function presenceStats() {
+  return {
+    online: new Set(presence.values()).size,
+    loggedIn: sockets.size,
+    playing: [...games.values()].filter((g) => g.phase !== "over").length,
+    queue: queue.length,
+  }
+}
+
+/** Coalesces bursts of changes into one broadcast per second. */
+function presenceChanged() {
+  if (presenceTimer) return
+  presenceTimer = setTimeout(() => {
+    presenceTimer = undefined
+    const msg = JSON.stringify({ t: "presence", ...presenceStats() })
+    for (const ws of presence.keys()) if (ws.readyState === WebSocket.OPEN) ws.send(msg)
+  }, 1000)
+}
+
+function onPresence(ws: WebSocket, browser: string) {
+  presence.set(ws, browser)
+  ws.send(JSON.stringify({ t: "presence", ...presenceStats() }))
+  presenceChanged()
+  ws.on("message", () => {}) // keep-alive pings
+  ws.on("close", () => {
+    presence.delete(ws)
+    presenceChanged()
+  })
+}
+
 function onConnect(ws: WebSocket, userId: number) {
   if (!sockets.has(userId)) sockets.set(userId, new Set())
   sockets.get(userId)!.add(ws)
+  presenceChanged()
   ws.send(JSON.stringify({ t: 'me', user: publicUser(getUser(userId)!) }))
   queueState(userId)
   const gid = activeGameOf.get(userId)
@@ -614,6 +658,7 @@ function onConnect(ws: WebSocket, userId: number) {
       sockets.delete(userId)
       queue = queue.filter((id) => id !== userId) // nobody to notify when matched
     }
+    presenceChanged()
   })
 }
 

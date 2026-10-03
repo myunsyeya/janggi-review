@@ -8,6 +8,7 @@ import { Conn, api, saveToken, savedToken, type GameSummary, type GameView, type
 import { treeFromMoves } from "./tree"
 import { SetupIcon, SetupPicker } from "./SetupIcon"
 import GameRow, { loadGameImport } from "./GameRow"
+import type { Presence } from "./presence"
 import { Avatar, EvalBar, useHeldKey, IconFirst, IconLast, IconNext, IconPrev, PlayerTag, formatClock } from "./ui"
 
 const tagged = (u: { nick: string; tag: string }) => `${u.nick}#${u.tag}`
@@ -17,11 +18,13 @@ const IS: Record<Side, string> = { cho: "초예요", han: "한이에요" }
 
 export default function Play({
   rulesReady,
+  presence,
   seek,
   active,
   onReview,
 }: {
   rulesReady: boolean
+  presence: Presence | null
   seek: number
   active: boolean
   onReview: (g: GameImport) => void
@@ -282,6 +285,7 @@ export default function Play({
           />
         ) : (
           <Lobby
+            presence={presence}
             token={token}
             onMe={setMe}
             queue={queue}
@@ -446,6 +450,7 @@ function SetupPhase({
 }
 
 function Lobby({
+  presence,
   token,
   onMe,
   queue,
@@ -456,6 +461,7 @@ function Lobby({
   me,
   onOpen,
 }: {
+  presence: Presence | null
   token: string
   onMe: (u: PublicUser) => void
   queue: { waiting: boolean; count: number }
@@ -472,7 +478,10 @@ function Lobby({
       <div className="seek-card">
         <div className="seek-info">
           <span className="seek-tc">10분 + 5초</span>
-          <span className="muted small">레이팅 대국 · 초/한 무작위</span>
+          <span className="muted small">
+            레이팅 대국 · 초/한 무작위
+            {presence && ` · 대국 중 ${presence.playing}판 · 대기 ${presence.queue}명`}
+          </span>
         </div>
         {queue.waiting ? (
           <div className="seeking">

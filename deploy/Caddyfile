@@ -11,7 +11,7 @@ myunsyeya.com {
 	handle /api/* {
 		reverse_proxy 127.0.0.1:8787
 	}
-	handle /ws {
+	handle /ws* {
 		reverse_proxy 127.0.0.1:8787
 	}
 	handle {

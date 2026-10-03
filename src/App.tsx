@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Analysis, { type GameImport } from './Analysis'
 import Play from "./Play"
 import Ranking from "./Ranking"
+import { usePresence } from "./presence"
 import { loadRules } from './janggi'
 import { IconAnalysis, IconPlay, IconRanking } from "./ui"
 
@@ -12,6 +13,7 @@ export default function App() {
   const [rulesReady, setRulesReady] = useState(false)
   const [page, setPage] = useState<Page>(pageFromHash)
   const [load, setLoad] = useState<GameImport | null>(null)
+  const presence = usePresence()
   const [seek, setSeek] = useState(0) // bumped to make the play page join the queue
 
   useEffect(() => {
@@ -42,10 +44,21 @@ export default function App() {
           <IconRanking />
           <span>순위</span>
         </button>
+        {presence && (
+          <div
+            className="online"
+            title={`로그인 ${presence.loggedIn}명 · 대국 중 ${presence.playing}판 · 대기 ${presence.queue}명`}
+          >
+            <span className="online-dot" />
+            <b>{presence.online}</b>
+            <span>명 접속</span>
+          </div>
+        )}
       </nav>
       <main className="page" hidden={page !== 'play'}>
         <Play
           rulesReady={rulesReady}
+          presence={presence}
           seek={seek}
           active={page === 'play'}
           onReview={(g) => {
