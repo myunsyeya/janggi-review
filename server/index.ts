@@ -11,6 +11,7 @@ import { INITIAL, update, type Rating } from './glicko2.ts'
 import { handleStudies, initStudies, type StudyDeps } from './studies.ts'
 import { clearExtra, handleUserStudies, initUserStudies, type UserStudyDeps } from './userStudies.ts'
 import { handleUserStudyPage, handleUserStudySitemap } from './userStudyPages.ts'
+import { analyseLive, gameAnalysis, initAnalysis } from './analysis.ts'
 
 const PORT = 8787
 const INITIAL_MS = 10 * 60 * 1000
@@ -66,6 +67,7 @@ db.exec(`
 `)
 initStudies(db)
 initUserStudies(db)
+await initAnalysis(db, path.join(ROOT, '..'))
 
 // added later: profile pictures (version = upload time, null = none)
 if (!(db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).some((c) => c.name === "avatar"))
@@ -278,6 +280,7 @@ function chooseSetup(g: Game, side: Side, setup: Setup) {
     g.phase = 'play'
     g.deadline = undefined
     g.startFen = g.fen = startFen(g.setups.cho!, g.setups.han!)
+    analyseLive(g.fen)
     g.turnStart = Date.now()
   }
   schedule(g)
@@ -312,6 +315,7 @@ function playMove(g: Game, side: Side, uci: string) {
   g.moves.push(uci)
   g.sans.push(res.san)
   g.fen = res.fen
+  analyseLive(res.fen) // review prepared in the background; never served before the game ends
   if (g.drawOffer === other(side)) g.drawOffer = null
   if (res.over) return finish(g, res.result!, res.mate ? '외통' : res.bikjang ? '빅장' : '규칙')
   schedule(g)
@@ -360,6 +364,7 @@ function finish(g: Game, result: NonNullable<Game['result']>, reason: string) {
   activeGameOf.delete(cho.id)
   activeGameOf.delete(han.id)
   if (g.startFen) addToExplorer(g.startFen, g.moves, result)
+  if (g.startFen) gameAnalysis(g.startFen, g.moves) // the rest of the review, now at high priority
   broadcast(g)
   presenceChanged()
   setTimeout(() => games.delete(g.id), 10 * 60 * 1000)
@@ -527,6 +532,13 @@ const server = http.createServer(async (req, res) => {
         .prepare('SELECT * FROM games WHERE cho_id = ? OR han_id = ? ORDER BY ended DESC LIMIT 30')
         .all(u.id, u.id) as Record<string, unknown>[]
       return json(res, 200, { games: rows.map(gameSummary) })
+    }
+    // review of a finished game: engine results for its positions (only games in the database, i.e. finished)
+    const ga = /^\/api\/games\/([\w-]+)\/analysis$/.exec(url.pathname)
+    if (ga) {
+      const row = db.prepare('SELECT start_fen, moves FROM games WHERE id = ?').get(ga[1]) as { start_fen: string; moves: string } | undefined
+      if (!row) return json(res, 404, { error: '끝난 대국만 리뷰할 수 있어요' })
+      return json(res, 200, gameAnalysis(row.start_fen, row.moves.split(' ').filter(Boolean)))
     }
     const m = /^\/api\/games\/([\w-]+)$/.exec(url.pathname)
     if (m) {

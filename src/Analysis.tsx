@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Board, { type Arrow } from './Board'
 import MoveList from './MoveList'
 import ReviewPanel from './ReviewPanel'
+import { api } from './net'
 import { evaluate, getEngine, type Analysis as EngineAnalysis, type Engine } from './engine'
 import { SetupPicker } from "./SetupIcon"
 import { moveSound, playSound } from "./sound"
@@ -41,6 +42,8 @@ export interface GameImport {
   cho?: string
   han?: string
   review?: boolean
+  /** a finished game on the site: its review comes from the server's analysis (prepared during the game) */
+  gameId?: string
   result?: GameResult | null
   reason?: string | null
 }
@@ -268,9 +271,39 @@ export default function Analysis({
     setLoadedResult(load.result ? { at: load.moves.length ? t.nextId - 1 : ROOT, label: resultLabel(load.result, load.reason) } : null)
     if (load.review) {
       setTab('review')
-      runFullReview(load.moves, load.startFen)
+      if (load.gameId) fetchServerReview(load.gameId, load)
+      else runFullReview(load.moves, load.startFen)
     }
-  }, [load, rulesReady, runFullReview])
+  }, [load, rulesReady, runFullReview]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // a site game: the server analysed it (mostly while it was played); show its progress until all positions are in.
+  // If the server cannot help, the browser reviews it as before.
+  const serverPoll = useRef(0)
+  const fetchServerReview = async (gameId: string, game: GameImport) => {
+    const token = ++serverPoll.current
+    setReviewOn(true)
+    setFullRun(true)
+    for (;;) {
+      let r: { total: number; done: number; evals: Record<string, PosEval> }
+      try {
+        r = await api(`/games/${gameId}/analysis`)
+      } catch {
+        if (serverPoll.current !== token) return
+        setFullRun(false)
+        return runFullReview(game.moves, game.startFen)
+      }
+      if (serverPoll.current !== token) return
+      setEvals((e) => ({ ...e, ...r.evals }))
+      if (r.done >= r.total) {
+        setReviewRun(null)
+        setFullRun(false)
+        return
+      }
+      setReviewRun({ done: r.done, total: r.total })
+      await new Promise((ok) => setTimeout(ok, 2000))
+    }
+  }
+  useEffect(() => () => void ++serverPoll.current, [])
 
   // every move in the tree (main line and variations) that has evaluations gets a class
   const treeReviews = useMemo(() => {

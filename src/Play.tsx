@@ -328,6 +328,7 @@ export default function Play({
                     cho: tagged(game.cho),
                     han: tagged(game.han),
                     review: true,
+                    gameId: game.id,
                     result: game.result,
                     reason: game.reason,
                   })

@@ -123,6 +123,11 @@ export default function ReviewPanel(p: {
           </div>
         ))}
       </div>
+      {p.plies.length > 0 && (
+        <button className="btn primary big" onClick={() => p.onSelect(1)}>
+          수를 따라가며 리뷰
+        </button>
+      )}
       </>
       )}
     </section>

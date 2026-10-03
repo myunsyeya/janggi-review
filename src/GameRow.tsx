@@ -12,6 +12,7 @@ export async function loadGameImport(id: string): Promise<GameImport> {
     cho: `${g.cho.nick}#${g.cho.tag}`,
     han: `${g.han.nick}#${g.han.tag}`,
     review: true,
+    gameId: g.id,
     result: g.result as GameResult,
     reason: g.reason,
   }

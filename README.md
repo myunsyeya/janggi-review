@@ -40,6 +40,14 @@ files `01-english-name.pgn`, `02-…` (the name is the chapter's address; topics
 and games then show that name and link to the chapter (position-based; one name per position). Moves written with a move number inside a comment
 (`… 2...Hd8 3. Hg3 …`) become clickable in the viewer.
 
+### Game review on the server
+
+Site games are reviewed by the game server (`server/analysis.ts`): one Fairy-Stockfish instance (3 threads) analyses
+every new position of a live game in the background, and the rest of a game at high priority when it ends.
+Results go into `position_evals` by FEN (shared between games) at the browser review's depth, and
+`GET /api/games/:id/analysis` serves them only for finished games. Opening a game's review shows the accuracy at
+once, or the server's progress if it is still working; lines from the analysis board are still reviewed in the browser.
+
 ### User studies
 
 Logged-in users write their own studies at `/study/<id>/edit` (moves on the board, comments, glyphs, right-drag
