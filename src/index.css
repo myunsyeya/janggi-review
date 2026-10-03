@@ -1778,18 +1778,3 @@ button {
     height: 520px;
   }
 }
-.provisional {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: 9px;
-  font-size: 10px;
-  font-weight: 700;
-  color: #f7c631;
-  background: #f7c63122;
-  cursor: help;
-  vertical-align: 1px;
-}
-.pd-head .provisional {
-  margin: 4px 0 0;
-}

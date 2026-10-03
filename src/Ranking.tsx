@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { GameImport } from './Analysis'
 import GameRow, { loadGameImport } from './GameRow'
 import { api, savedToken, type GameSummary, type PlayerRecord, type PublicUser } from './net'
-import { Avatar, Provisional } from "./ui"
+import { Avatar } from './ui'
 
 const winRate = (u: PlayerRecord) => {
   const n = u.wins + u.draws + u.losses
@@ -90,6 +90,7 @@ export default function Ranking({ active, onReview }: { active: boolean; onRevie
                 </span>
                 <span className="rank-rating">
                   {u.rating}
+                  {u.provisional ? <span className="muted">?</span> : null}
                 </span>
                 <span className="rank-wdl">
                   <span className="up">{u.wins}</span>/<span className="muted">{u.draws}</span>/<span className="down">{u.losses}</span>
@@ -114,11 +115,10 @@ export default function Ranking({ active, onReview }: { active: boolean; onRevie
                   <span className="muted">#{detail.user.tag}</span>
                 </div>
                 <div className="muted small">{rankOf(detail.user.id) ? `${rankOf(detail.user.id)}위` : '순위 없음'}</div>
-                {detail.user.provisional && <Provisional />}
               </div>
             </div>
             <div className="pd-stats">
-              <Stat label="레이팅" value={String(detail.user.rating)} />
+              <Stat label="레이팅" value={`${detail.user.rating}${detail.user.provisional ? '?' : ''}`} />
               <Stat label="대국" value={String(detail.user.wins + detail.user.draws + detail.user.losses)} />
               <Stat label="승" value={String(detail.user.wins)} cls="up" />
               <Stat label="무" value={String(detail.user.draws)} />
