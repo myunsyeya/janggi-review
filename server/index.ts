@@ -72,6 +72,9 @@ await initAnalysis(db, path.join(ROOT, '..'))
 // added later: profile pictures (version = upload time, null = none)
 if (!(db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).some((c) => c.name === "avatar"))
   db.exec("ALTER TABLE users ADD COLUMN avatar INTEGER; ALTER TABLE users ADD COLUMN avatar_type TEXT")
+// added later: guests ("게스트로 입장"), kept out of the ranking
+if (!(db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).some((c) => c.name === "guest"))
+  db.exec("ALTER TABLE users ADD COLUMN guest INTEGER NOT NULL DEFAULT 0")
 const AVATARS = path.join(DATA, "avatars")
 fs.mkdirSync(AVATARS, { recursive: true })
 const AVATAR_MAX = 64 * 1024
@@ -88,6 +91,7 @@ interface User extends Rating {
   games: number
   avatar: number | null
   avatar_type: string | null
+  guest: number
 }
 
 const publicUser = (u: User) => ({
@@ -129,7 +133,7 @@ for (const u of db.prepare("SELECT id, nick, key_hash FROM users WHERE tag GLOB 
 function login(nick: string, password: string): { user: User; created: boolean } {
   if (!NICK_RE.test(nick)) throw new Error('닉네임은 한글/영문/숫자/_ 2~12자로 해 주세요')
   if (typeof password !== 'string' || password.length < 4 || password.length > 128)
-    throw new Error('비밀번호는 4자 이상으로 해 주세요')
+    throw new Error('식별번호는 4자 이상으로 해 주세요')
   const key = crypto.scryptSync(password, `janggi:${nick}`, 32)
   const keyHash = crypto.createHash('sha256').update(key).digest('hex')
   const found = db.prepare('SELECT * FROM users WHERE key_hash = ?').get(keyHash) as User | undefined
@@ -139,6 +143,16 @@ function login(nick: string, password: string): { user: User; created: boolean }
     .prepare('INSERT INTO users (nick, tag, key_hash, rating, rd, vol, created) VALUES (?, ?, ?, ?, ?, ?, ?)')
     .run(nick, tag, keyHash, INITIAL.rating, INITIAL.rd, INITIAL.vol, Date.now())
   return { user: getUser(Number(r.lastInsertRowid))!, created: true }
+}
+
+/** A guest: an account with a random key; the browser keeps its session token, so it comes back as the same guest */
+function guestLogin(): User {
+  const keyHash = crypto.randomBytes(32).toString('hex')
+  const nick = '게스트'
+  const r = db
+    .prepare('INSERT INTO users (nick, tag, key_hash, rating, rd, vol, created, guest) VALUES (?, ?, ?, ?, ?, ?, ?, 1)')
+    .run(nick, numericTag(nick, keyHash), keyHash, INITIAL.rating, INITIAL.rd, INITIAL.vol, Date.now())
+  return getUser(Number(r.lastInsertRowid))!
 }
 
 function newSession(userId: number) {
@@ -507,6 +521,11 @@ const server = http.createServer(async (req, res) => {
     // user studies' crawlable pages and sitemap (Caddy proxies these paths here)
     if (url.pathname.startsWith('/study/u-') && handleUserStudyPage(userStudyDeps, req, res, url)) return
     if (url.pathname === '/sitemap-user-studies.xml') return handleUserStudySitemap(userStudyDeps, res)
+    if (req.method === 'POST' && url.pathname === '/api/guest') {
+      if (rateLimited(ip)) return json(res, 429, { error: '잠시 후 다시 시도해 주세요' })
+      const user = guestLogin()
+      return json(res, 200, { token: newSession(user.id), user: publicUser(user), created: true })
+    }
     if (req.method === 'POST' && url.pathname === '/api/login') {
       if (rateLimited(ip)) return json(res, 429, { error: '잠시 후 다시 시도해 주세요' })
       const body = await readBody(req)
@@ -587,7 +606,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, { moves, total: moves.reduce((s, m) => s + m.n, 0) })
     }
     if (url.pathname === "/api/leaderboard") {
-      const rows = db.prepare("SELECT * FROM users WHERE games > 0 ORDER BY rating DESC LIMIT 100").all() as unknown as User[]
+      const rows = db.prepare("SELECT * FROM users WHERE games > 0 AND guest = 0 ORDER BY rating DESC LIMIT 100").all() as unknown as User[]
       return json(res, 200, { users: rows.map((u) => ({ ...publicUser(u), ...record(u.id) })) })
     }
     if (url.pathname === "/api/users") {
@@ -595,7 +614,7 @@ const server = http.createServer(async (req, res) => {
       const q = (url.searchParams.get("q") ?? "").trim().replace(/#.*/, "").slice(0, 12)
       if (!q) return json(res, 200, { users: [] })
       const rows = db
-        .prepare("SELECT * FROM users WHERE nick LIKE ? ESCAPE '\\' ORDER BY games DESC, rating DESC LIMIT 20")
+        .prepare("SELECT * FROM users WHERE guest = 0 AND nick LIKE ? ESCAPE '\\' ORDER BY games DESC, rating DESC LIMIT 20")
         .all(q.replace(/[\\%_]/g, (c) => "\\" + c) + "%") as unknown as User[]
       return json(res, 200, { users: rows.map((u) => ({ ...publicUser(u), ...record(u.id) })) })
     }

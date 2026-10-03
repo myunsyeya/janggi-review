@@ -2607,3 +2607,8 @@ button {
   display: flex;
   gap: 4px;
 }
+.login .guest-btn {
+  flex: none;
+  padding: 10px;
+  font-size: 14px;
+}

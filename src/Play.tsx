@@ -180,7 +180,7 @@ export default function Play({
     saveToken(t)
     setToken(t)
     setMe(u)
-    setNotice(created ? `새 계정이 만들어졌어요: ${tagged(u)}` : null)
+    setNotice(created ? (u.nick === '게스트' ? `게스트로 입장했어요: ${tagged(u)}` : `새 계정이 만들어졌어요: ${tagged(u)}`) : null)
   }} />
 
   const mat = material(fen)
@@ -544,6 +544,18 @@ function Login({
       setBusy(false)
     }
   }
+  const guest = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const r = await api<{ token: string; user: PublicUser; created: boolean }>('/guest', null, {})
+      onLogin(r.token, r.user, r.created)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
   return (
     <div className="login-wrap">
       <form className="login" onSubmit={submit}>
@@ -552,21 +564,25 @@ function Login({
           <OnlineBadge p={presence} />
         </div>
         <p className="muted small">
-          닉네임과 비밀번호 조합이 곧 계정이에요. 처음 쓰는 조합이면 새 계정이 만들어지고, 닉네임 뒤에 <b>#태그</b>가 붙어요.
-          비밀번호를 다르게 치면 다른 계정이 되니 주의하세요.
+          닉네임과 식별번호 조합이 곧 계정이에요. 처음 쓰는 조합이면 새 계정이 만들어지고, 닉네임 뒤에 <b>#태그</b>가 붙어요.
+          식별번호를 다르게 치면 다른 계정이 되니 주의하세요.
         </p>
         <label>
           닉네임
           <input value={nick} onChange={(e) => setNick(e.target.value)} maxLength={12} autoComplete="username" />
         </label>
         <label>
-          비밀번호
+          식별번호
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
         </label>
         {error && <div className="error">{error}</div>}
         <button className="btn primary big" disabled={busy || !nick || !password}>
           입장
         </button>
+        <button type="button" className="btn guest-btn" disabled={busy} onClick={guest}>
+          게스트로 입장
+        </button>
+        <p className="muted small">게스트는 이 브라우저에서만 이어져요. 순위표에는 나오지 않아요.</p>
       </form>
     </div>
   )
