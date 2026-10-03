@@ -248,3 +248,12 @@ export function OnlineBadge({ p, detail = false }: { p: { online: number; playin
     </span>
   )
 }
+
+/** Shown instead of a bare "?" while a Glicko-2 rating is still provisional. */
+export function Provisional() {
+  return (
+    <span className="provisional" title="둔 판이 적어 아직 레이팅이 정확하지 않아요. 10판 정도 두면 자리를 잡아요.">
+      배치 중
+    </span>
+  )
+}

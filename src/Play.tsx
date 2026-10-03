@@ -9,7 +9,7 @@ import { treeFromMoves } from "./tree"
 import { SetupIcon, SetupPicker } from "./SetupIcon"
 import GameRow, { loadGameImport } from "./GameRow"
 import type { Presence } from "./presence"
-import { Avatar, EvalBar, OnlineBadge, useHeldKey, IconFirst, IconLast, IconNext, IconPrev, PlayerTag, formatClock } from "./ui"
+import { Avatar, EvalBar, OnlineBadge, Provisional, useHeldKey, IconFirst, IconLast, IconNext, IconPrev, PlayerTag, formatClock } from "./ui"
 
 const tagged = (u: { nick: string; tag: string }) => `${u.nick}#${u.tag}`
 const SIDE_NAME: Record<Side, string> = { cho: "초", han: "한" }
@@ -246,7 +246,6 @@ export default function Play({
             {me && (
               <>
                 {tagged(me)} · {me.rating}
-                {me.provisional ? '?' : ''}
               </>
             )}
             <button
@@ -610,7 +609,7 @@ function ProfileCard({ me, token, onChange }: { me: PublicUser; token: string; o
         </div>
         <div className="muted small">
           레이팅 {me.rating}
-          {me.provisional ? '?' : ''} · {me.games}판
+          {" "}· {me.games}판 {me.provisional && <Provisional />}
         </div>
         {me.avatar && (
           <button className="link light small" onClick={() => upload(null)}>
