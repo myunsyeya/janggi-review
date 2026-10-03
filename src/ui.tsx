@@ -231,3 +231,14 @@ export function useHeldKey(code: string, active: boolean) {
   }, [code, active])
   return held
 }
+
+/** "● 3명 접속 중" pill, with game/queue counts when `detail` is set. */
+export function OnlineBadge({ p, detail = false }: { p: { online: number; playing: number; queue: number } | null; detail?: boolean }) {
+  if (!p) return null
+  return (
+    <span className="online-badge">
+      <span className="online-dot" />
+      {p.online}명 접속 중{detail && ` · 대국 중 ${p.playing}판 · 대기 ${p.queue}명`}
+    </span>
+  )
+}

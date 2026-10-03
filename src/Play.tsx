@@ -9,7 +9,7 @@ import { treeFromMoves } from "./tree"
 import { SetupIcon, SetupPicker } from "./SetupIcon"
 import GameRow, { loadGameImport } from "./GameRow"
 import type { Presence } from "./presence"
-import { Avatar, EvalBar, useHeldKey, IconFirst, IconLast, IconNext, IconPrev, PlayerTag, formatClock } from "./ui"
+import { Avatar, EvalBar, OnlineBadge, useHeldKey, IconFirst, IconLast, IconNext, IconPrev, PlayerTag, formatClock } from "./ui"
 
 const tagged = (u: { nick: string; tag: string }) => `${u.nick}#${u.tag}`
 const SIDE_NAME: Record<Side, string> = { cho: "초", han: "한" }
@@ -171,7 +171,7 @@ export default function Play({
     return () => window.removeEventListener('keydown', onKey)
   }, [active, shownPly, plies.length])
 
-  if (!token) return <Login onLogin={(t, u, created) => {
+  if (!token) return <Login presence={presence} onLogin={(t, u, created) => {
     saveToken(t)
     setToken(t)
     setMe(u)
@@ -478,10 +478,7 @@ function Lobby({
       <div className="seek-card">
         <div className="seek-info">
           <span className="seek-tc">10분 + 5초</span>
-          <span className="muted small">
-            레이팅 대국 · 초/한 무작위
-            {presence && ` · 대국 중 ${presence.playing}판 · 대기 ${presence.queue}명`}
-          </span>
+          <span className="muted small">레이팅 대국 · 초/한 무작위</span>
         </div>
         {queue.waiting ? (
           <div className="seeking">
@@ -499,6 +496,9 @@ function Lobby({
           </button>
         )}
       </div>
+      <div className="lobby-online">
+        <OnlineBadge p={presence} detail />
+      </div>
       <div className="lobby-title">내 대국</div>
       <div className="lobby-list">
         {history.length === 0 ? (
@@ -511,7 +511,13 @@ function Lobby({
   )
 }
 
-function Login({ onLogin }: { onLogin: (token: string, user: PublicUser, created: boolean) => void }) {
+function Login({
+  onLogin,
+  presence,
+}: {
+  onLogin: (token: string, user: PublicUser, created: boolean) => void
+  presence: Presence | null
+}) {
   const [nick, setNick] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -532,7 +538,10 @@ function Login({ onLogin }: { onLogin: (token: string, user: PublicUser, created
   return (
     <div className="login-wrap">
       <form className="login" onSubmit={submit}>
-        <h2>대국하기</h2>
+        <div className="login-head">
+          <h2>대국하기</h2>
+          <OnlineBadge p={presence} />
+        </div>
         <p className="muted small">
           닉네임과 비밀번호 조합이 곧 계정이에요. 처음 쓰는 조합이면 새 계정이 만들어지고, 닉네임 뒤에 <b>#태그</b>가 붙어요.
           비밀번호를 다르게 치면 다른 계정이 되니 주의하세요.

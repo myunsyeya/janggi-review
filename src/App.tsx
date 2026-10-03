@@ -44,16 +44,6 @@ export default function App() {
           <IconRanking />
           <span>순위</span>
         </button>
-        {presence && (
-          <div
-            className="online"
-            title={`로그인 ${presence.loggedIn}명 · 대국 중 ${presence.playing}판 · 대기 ${presence.queue}명`}
-          >
-            <span className="online-dot" />
-            <b>{presence.online}</b>
-            <span>명 접속</span>
-          </div>
-        )}
       </nav>
       <main className="page" hidden={page !== 'play'}>
         <Play
