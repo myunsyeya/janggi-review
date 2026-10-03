@@ -130,26 +130,41 @@ export default function Play({
     return withBoard(fen, (b) => b.legalMoves().split(' ').filter(Boolean))
   }, [rulesReady, game, atLive, mySide, fen])
 
-  // premove: on the opponent's turn, moves are queued (from the position as if it were our turn)
-  // and sent the moment the opponent's move arrives, if still legal there
-  const [premove, setPremove] = useState<string | null>(null)
-  const premoveDests = useMemo(() => {
-    if (!rulesReady || !game || game.phase !== "play" || !atLive || !mySide || game.turn === mySide) return []
-    const parts = fen.split(" ")
-    parts[1] = mySide === "cho" ? "w" : "b"
-    try {
-      return withBoard(parts.join(" "), (b) => b.legalMoves().split(" ").filter((m) => m && !isPass(m)))
-    } catch {
-      return []
+  // premoves (chess.com style): on the opponent's turn moves are queued, each one from the position
+  // with the earlier ones applied. One is sent per turn; if one is no longer legal, the rest are dropped.
+  const [premoves, setPremoves] = useState<string[]>([])
+  const premoveView = useMemo(() => {
+    if (!rulesReady || !game || game.phase !== "play" || !atLive || !mySide || game.turn === mySide) return null
+    const mine = (f: string) => {
+      const parts = f.split(" ")
+      parts[1] = mySide === "cho" ? "w" : "b"
+      return parts.join(" ")
     }
-  }, [rulesReady, game, atLive, mySide, fen])
+    try {
+      return withBoard(mine(fen), (b) => {
+        for (const m of premoves) {
+          if (!b.legalMoves().split(" ").includes(m)) break
+          b.push(m)
+          b.setFen(mine(b.fen()))
+        }
+        return { fen: b.fen(), dests: b.legalMoves().split(" ").filter((m) => m && !isPass(m)) }
+      })
+    } catch {
+      return null
+    }
+  }, [rulesReady, game, atLive, mySide, fen, premoves])
+  const premoveDests = premoves.length < 10 ? (premoveView?.dests ?? []) : []
+  const firedAt = useRef(-1) // number of moves when we last sent a premove, so one goes per turn
   useEffect(() => {
-    if (!premove || !game) return
-    if (game.phase !== "play") return setPremove(null)
-    if (game.turn !== mySide) return
-    setPremove(null)
-    if (legal.includes(premove)) conn.current?.send({ t: "move", game: game.id, uci: premove })
-  }, [game, mySide, legal, premove])
+    if (!premoves.length || !game) return
+    if (game.phase !== "play") return setPremoves([])
+    if (game.turn !== mySide || !atLive || firedAt.current === game.moves.length) return
+    const [first, ...rest] = premoves
+    if (!legal.includes(first)) return setPremoves([])
+    firedAt.current = game.moves.length
+    conn.current?.send({ t: "move", game: game.id, uci: first })
+    setPremoves(rest)
+  }, [game, mySide, legal, premoves, atLive])
 
   const clock = (side: Side) => {
     if (!game) return undefined
@@ -216,19 +231,19 @@ export default function Play({
           <div className="board-wrap">
             {rulesReady ? (
               <Board
-                fen={fen}
+                fen={premoves.length && premoveView ? premoveView.fen : fen}
                 legal={legal.length ? legal : premoveDests}
                 flipped={flipped}
                 lastMove={lastMove}
                 arrows={[]}
                 interactive={legal.length > 0 || premoveDests.length > 0}
                 mover={mySide ?? undefined}
-                premove={premove}
-                onCancel={() => setPremove(null)}
+                premoves={premoves}
+                onCancel={() => setPremoves([])}
                 onMove={(uci) => {
                   if (!game) return
                   if (legal.length) send({ t: "move", game: game.id, uci })
-                  else setPremove(uci)
+                  else setPremoves((q) => [...q, uci])
                 }}
               />
             ) : (

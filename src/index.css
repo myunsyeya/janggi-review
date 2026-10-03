@@ -1778,3 +1778,6 @@ button {
     height: 520px;
   }
 }
+.board .piece.ghost {
+  opacity: 0.6;
+}

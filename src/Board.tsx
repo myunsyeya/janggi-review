@@ -25,7 +25,7 @@ interface Props {
   arrows: Arrow[]
   interactive: boolean
   mover?: "cho" | "han" // whose pieces can be picked up (default: side to move; differs for premoves)
-  premove?: string | null
+  premoves?: string[] // queued premoves; the shown fen already has them applied
   onCancel?: () => void
   onMove: (uci: string) => void
 }
@@ -50,7 +50,7 @@ export default function Board({
   interactive,
   onMove,
   mover,
-  premove,
+  premoves = [],
   onCancel,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null)
@@ -130,7 +130,7 @@ export default function Board({
     const p = toSvg(e)
     const sq = squareAt(p.x, p.y)
     if (e.button === 2) {
-      if (premove && onCancel) return onCancel() // right-click cancels a premove
+      if (premoves.length && onCancel) return onCancel() // right-click cancels the premoves
       if (sq) setDrawStart({ sq, color: drawColor(e) })
       return
     }
@@ -177,6 +177,16 @@ export default function Board({
   }
 
   const last = lastMove ? parseUci(lastMove) : null
+  // where premoved pieces stand now (drawn see-through until the moves are really played)
+  const ghosts = useMemo(() => {
+    const at = new Set<string>()
+    for (const m of premoves) {
+      const { from, to } = parseUci(m)
+      at.delete(from)
+      at.add(to)
+    }
+    return at
+  }, [premoves])
 
   const renderPiece = (sq: string, piece: string, at?: { x: number; y: number }) => {
     const { x, y } = at ?? pos(sq)
@@ -185,7 +195,7 @@ export default function Board({
     const r = PIECE_R[t]
     const color = cho ? 'var(--cho)' : 'var(--han)'
     return (
-      <g key={sq} transform={`translate(${x},${y})`} className="piece">
+      <g key={sq} transform={`translate(${x},${y})`} className={`piece ${ghosts.has(sq) && !at ? "ghost" : ""}`}>
         <polygon points={octagon(r)} fill="var(--piece-face)" stroke="var(--piece-edge)" strokeWidth={0.035} />
         <polygon points={octagon(r * 0.84)} fill="none" stroke={color} strokeWidth={0.025} />
         <text
@@ -255,8 +265,7 @@ export default function Board({
 
       {last && highlight(last.from, lastMoveColor ?? "var(--last)")}
       {last && last.to !== last.from && highlight(last.to, lastMoveColor ?? "var(--last)")}
-      {premove && highlight(parseUci(premove).from, "var(--premove)")}
-      {premove && highlight(parseUci(premove).to, "var(--premove)")}
+      {[...new Set(premoves.flatMap((m) => [parseUci(m).from, parseUci(m).to]))].map((sq) => highlight(sq, "var(--premove)"))}
       {selected && highlight(selected, 'var(--sel)')}
 
       {[...pieces].map(([sq, p]) => (drag?.moved && drag.sq === sq ? null : renderPiece(sq, p)))}
