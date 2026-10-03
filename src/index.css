@@ -2015,10 +2015,10 @@ button {
 .studies {
   display: grid;
   grid-template-columns: 200px minmax(0, 1fr);
-  gap: 20px;
+  gap: 28px;
   max-width: 1300px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 32px 40px;
 }
 .studies-nav {
   display: flex;
@@ -2171,11 +2171,12 @@ button {
 /* --- study page (lichess /study/<id>) ---------------------------------------------------- */
 
 .study {
-  --st-board: min(calc(100vh - 150px), calc((100vw - 76px - 300px - 400px - 80px) * 10.9 / 9.9));
+  /* board height: what is left after the sidebar (76), chapters (280), side panel (380), two gaps and the margins */
+  --st-board: min(calc(100vh - 176px), calc((100vw - 76px - 280px - 380px - 56px - 80px) * 10.9 / 9.9));
   display: grid;
-  grid-template-columns: 300px auto 400px;
-  gap: 20px;
-  padding: 20px;
+  grid-template-columns: 280px auto 380px;
+  gap: 28px;
+  padding: 32px 40px;
   justify-content: center;
   align-items: start;
 }
@@ -2425,8 +2426,9 @@ button {
 
 @media (max-width: 1200px) {
   .study {
-    --st-board: min(calc((100vw - 76px - 400px - 60px) * 10.9 / 9.9), calc(100vh - 150px));
-    grid-template-columns: auto 400px;
+    --st-board: min(calc((100vw - 76px - 380px - 28px - 64px) * 10.9 / 9.9), calc(100vh - 176px));
+    grid-template-columns: auto 380px;
+    padding: 24px 32px;
   }
   .study-chapters {
     grid-column: 1 / -1;
@@ -2437,8 +2439,10 @@ button {
     grid-template-columns: 1fr;
   }
   .study {
-    --st-board: min(calc((100vw - 40px) * 10.9 / 9.9), 80vh);
+    --st-board: min(calc((100vw - 32px) * 10.9 / 9.9), 80vh);
     grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 16px;
   }
   .study-side {
     height: 520px;
