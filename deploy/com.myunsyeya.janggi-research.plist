@@ -9,11 +9,9 @@
 		<string>/bin/zsh</string>
 		<string>/Users/myunsyeya/janggi-review/scripts/research-run.sh</string>
 	</array>
-	<!-- once a day, early morning -->
+	<!-- every hour at :17 -->
 	<key>StartCalendarInterval</key>
 	<dict>
-		<key>Hour</key>
-		<integer>5</integer>
 		<key>Minute</key>
 		<integer>17</integer>
 	</dict>

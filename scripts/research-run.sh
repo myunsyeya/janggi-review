@@ -1,10 +1,11 @@
 #!/bin/zsh
-# Daily research run (launchd: com.myunsyeya.janggi-research). Claude does one research step following
+# Hourly research run (launchd: com.myunsyeya.janggi-research, every hour at :17). Claude does one research step following
 # research/PROMPT.md, with permissions limited to content/studies and research/ by the settings file below;
 # this script then checks every move, deploys (build) and commits/pushes. Anything that fails is set aside
 # in a git stash instead of being published.
 #   on/off: the settings file exists or not.  test: touch research/.test-run (only checks that claude runs)
 set -u
+# launchd starts this every hour at :17; a run still going holds the lock and the next one skips
 APP="$HOME/janggi-review"
 SETTINGS="$HOME/.config/janggi-research/settings.json"
 LOGDIR="$HOME/Library/Logs/janggi-research"
