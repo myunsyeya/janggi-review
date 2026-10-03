@@ -5,13 +5,13 @@ chess.com의 분석 페이지와 게임 리뷰를 장기로 옮긴 웹앱. 온�
 
 ## 기능
 
-- **분석판** (`#analysis`): 수를 둘 때마다 Fairy-Stockfish(NNUE)가 다시 분석. 평가 막대, 후보 3수, 최선수 화살표,
+- **분석판** (`/analysis`): 수를 둘 때마다 Fairy-Stockfish(NNUE)가 다시 분석. 평가 막대, 후보 3수, 최선수 화살표,
   변화도(수 우클릭 → 변화도 올리기/삭제), `f`를 누르고 있는 동안 반대편에서 보기, 우클릭 화살표·원(Shift 초록, Ctrl 빨강, Alt 파랑), 수순 클릭 시 그 지점까지 진행.
 - **게임 리뷰**: 모든 국면을 깊이 16, MultiPV 2로 분석해 chess.com 등급(탁월한 수 … 블런더), 정확도, 평가 그래프를 매긴다.
   리뷰 중 새로 둔 수(변화도 포함)도 바로 평가한다. 기준은 `src/review.ts` 상단 참고.
-- **대국** (`#play`): 닉네임+비밀번호 = 계정(배틀태그식 `닉#1234`, 숫자 4자리, 처음 쓰는 조합이면 자동 생성). 대기 2명이면 매칭,
+- **대국** (`/`): 닉네임+비밀번호 = 계정(배틀태그식 `닉#1234`, 숫자 4자리, 처음 쓰는 조합이면 자동 생성). 대기 2명이면 매칭,
   초/한 무작위, 한→초 순서로 차림 선택(30초), 10분+5초, 프리무브, 한수쉼, 무승부 제안, 기권, 프로필 사진.
-- **순위** (`#ranking`): 레이팅 순위, 승/무/패·승률, 닉네임 검색, 플레이어별 최근 대국(누르면 리뷰).
+- **순위** (`/ranking`): 레이팅 순위, 승/무/패·승률, 닉네임 검색, 플레이어별 최근 대국(누르면 리뷰).
 
 ## 규칙과 표기
 
@@ -89,3 +89,16 @@ npm run server              # 또는 launchd 에이전트 등록
 
 `deploy/`에는 운영 설정의 사본이 있다(실제 위치: `~/.config/caddy/Caddyfile`, `~/Library/LaunchAgents/*.plist`).
 설정을 바꾸면 사본도 같이 갱신해 둘 것.
+
+## SEO
+
+- 주소는 경로 방식(`/`, `/analysis`, `/ranking`). 예전 `#analysis` 같은 주소는 앱이 새 주소로 바꿔준다.
+- 페이지 정보는 `src/seo.ts` 한 곳에 있다(제목, 설명, 사이트맵 우선순위, 자바스크립트를 안 돌리는 크롤러용 본문).
+  `npm run build`의 마지막 단계 `scripts/seo.ts`가 페이지마다 `dist/<이름>.html`을 만든다:
+  title·description·canonical·Open Graph·Twitter·JSON-LD(WebSite, WebApplication, WebPage, BreadcrumbList)와 본문.
+  같은 단계에서 `sitemap.xml`(스타일: `public/sitemap.xsl`)과 noindex `404.html`도 만든다.
+- Caddy: `/analysis` → `analysis.html`, `/analysis.html`·`/index.html` → 깔끔한 주소로 301, 없는 주소는 404.
+- 정적 파일: `public/robots.txt`, `public/llms.txt`(AI 검색용 요약), `public/manifest.webmanifest`,
+  `public/og.png`(링크 미리보기, `node scripts/og-image.mjs`로 다시 만듦).
+- **새 콘텐츠 페이지(예: 오프닝 해설)를 추가할 때**: `src/seo.ts`의 `PAGES`에 항목을 넣으면 HTML과 사이트맵이 자동으로 생긴다.
+  읽을거리 페이지라면 본문을 `body`에 충실히 쓰는 것이 검색·AI 노출에 가장 중요하다. `llms.txt`에도 한 줄 추가할 것.

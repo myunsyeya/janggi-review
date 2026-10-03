@@ -1781,3 +1781,38 @@ button {
 .board .piece.ghost {
   opacity: 0.6;
 }
+
+/* sidebar entries are links now (crawlable), styled like the old buttons */
+.sidebar a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  color: #ffffffb3;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.sidebar a.active,
+.sidebar a:hover {
+  background: #1f1e1c;
+  color: #fff;
+}
+
+/* pre-rendered page text for crawlers; replaced as soon as the app starts */
+.seo-fallback {
+  max-width: 720px;
+  margin: 12vh auto;
+  padding: 0 24px;
+  color: #ffffffb3;
+  line-height: 1.7;
+  font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+}
+.seo-fallback h1 {
+  color: #fff;
+  font-size: 24px;
+}
+.seo-fallback a {
+  color: #81b64c;
+}

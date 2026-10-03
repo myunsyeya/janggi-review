@@ -8,6 +8,10 @@ myunsyeya.com {
 	}
 	@engine path /engine/*
 	header @engine Cache-Control "public, max-age=86400"
+	@xsl path *.xsl
+	header @xsl Content-Type "text/xsl; charset=utf-8"
+	@manifest path *.webmanifest
+	header @manifest Content-Type "application/manifest+json"
 	handle /api/* {
 		reverse_proxy 127.0.0.1:8787
 	}
@@ -15,7 +19,16 @@ myunsyeya.com {
 		reverse_proxy 127.0.0.1:8787
 	}
 	handle {
-		try_files {path} /index.html
+		# one URL per page: /analysis.html -> /analysis, /index.html -> /
+		redir /index.html / 301
+		@html path_regexp html ^/(.+)\.html$
+		redir @html /{re.html.1} 301
+		# /analysis is served from the pre-rendered analysis.html
+		try_files {path} {path}.html
+		file_server
+	}
+	handle_errors 404 {
+		rewrite * /404.html
 		file_server
 	}
 	log {

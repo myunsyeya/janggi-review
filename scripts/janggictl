@@ -19,7 +19,7 @@ case "$1" in
     echo "site: $(curl -s -o /dev/null -w '%{http_code}' https://myunsyeya.com/)"
     ;;
   deploy)   # rebuild the web app; Caddy serves dist/ directly, no restart needed
-    cd "$APP" && npx tsc -b && npx vite build
+    cd "$APP" && npm run build
     ;;
   restart)  # restart the game server (live games are in memory and would be lost)
     n=$(live_games | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).liveGames.length)}catch{console.log(0)}})')

@@ -1,49 +1,82 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type MouseEvent, type ReactNode } from 'react'
 import Analysis, { type GameImport } from './Analysis'
-import Play from "./Play"
-import Ranking from "./Ranking"
-import { usePresence } from "./presence"
+import Play from './Play'
+import Ranking from './Ranking'
+import { usePresence } from './presence'
 import { loadRules } from './janggi'
-import { IconAnalysis, IconPlay, IconRanking } from "./ui"
+import { pageFor } from './seo'
+import { IconAnalysis, IconPlay, IconRanking } from './ui'
 
-type Page = "play" | "analysis" | "ranking"
-const pageFromHash = (): Page => (location.hash === "#analysis" ? "analysis" : location.hash === "#ranking" ? "ranking" : "play")
+type Page = 'play' | 'analysis' | 'ranking'
+const PATHS: Record<Page, string> = { play: '/', analysis: '/analysis', ranking: '/ranking' }
+
+function pageFromLocation(): Page {
+  // old links used #analysis / #ranking
+  const legacy = location.hash.slice(1)
+  if (legacy === 'analysis' || legacy === 'ranking' || legacy === 'play') {
+    history.replaceState(null, '', PATHS[legacy])
+    return legacy
+  }
+  const found = (Object.keys(PATHS) as Page[]).find((p) => PATHS[p] === location.pathname)
+  if (!found) history.replaceState(null, "", "/") // unknown address (served as a 404 page): show the home page
+  return found ?? "play"
+}
 
 export default function App() {
   const [rulesReady, setRulesReady] = useState(false)
-  const [page, setPage] = useState<Page>(pageFromHash)
+  const [page, setPage] = useState<Page>(pageFromLocation)
   const [load, setLoad] = useState<GameImport | null>(null)
   const presence = usePresence()
   const [seek, setSeek] = useState(0) // bumped to make the play page join the queue
 
   useEffect(() => {
     loadRules().then(() => setRulesReady(true))
-    const onHash = () => setPage(pageFromHash())
-    window.addEventListener('hashchange', onHash)
-    return () => window.removeEventListener('hashchange', onHash)
+    const onPop = () => setPage(pageFromLocation())
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
   }, [])
 
+  useEffect(() => {
+    const meta = pageFor(PATHS[page])
+    if (meta) document.title = meta.title
+  }, [page])
+
   const go = (p: Page) => {
-    location.hash = p
+    if (location.pathname !== PATHS[p]) history.pushState(null, '', PATHS[p])
     setPage(p)
   }
+
+  // real links (crawlable, open in a new tab with a modifier key), handled in-app on a plain click
+  const NavLink = ({ to, children }: { to: Page; children: ReactNode }) => (
+    <a
+      href={PATHS[to]}
+      className={page === to ? 'active' : ''}
+      onClick={(e: MouseEvent) => {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+        e.preventDefault()
+        go(to)
+      }}
+    >
+      {children}
+    </a>
+  )
 
   return (
     <div className="shell">
       <nav className="sidebar">
         <div className="logo">楚漢</div>
-        <button className={page === 'play' ? 'active' : ''} onClick={() => go('play')}>
+        <NavLink to="play">
           <IconPlay />
           <span>대국</span>
-        </button>
-        <button className={page === 'analysis' ? 'active' : ''} onClick={() => go('analysis')}>
+        </NavLink>
+        <NavLink to="analysis">
           <IconAnalysis />
           <span>분석</span>
-        </button>
-        <button className={page === "ranking" ? "active" : ""} onClick={() => go("ranking")}>
+        </NavLink>
+        <NavLink to="ranking">
           <IconRanking />
           <span>순위</span>
-        </button>
+        </NavLink>
       </nav>
       <main className="page" hidden={page !== 'play'}>
         <Play
@@ -57,23 +90,23 @@ export default function App() {
           }}
         />
       </main>
-      <main className="page" hidden={page !== "ranking"}>
+      <main className="page" hidden={page !== 'ranking'}>
         <Ranking
-          active={page === "ranking"}
+          active={page === 'ranking'}
           onReview={(g) => {
             setLoad(g)
-            go("analysis")
+            go('analysis')
           }}
         />
       </main>
       <main className="page" hidden={page !== 'analysis'}>
         <Analysis
           rulesReady={rulesReady}
-          active={page === "analysis"}
+          active={page === 'analysis'}
           load={load}
           onNewGame={() => {
             setSeek((s) => s + 1)
-            go("play")
+            go('play')
           }}
         />
       </main>
