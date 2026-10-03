@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { barPercent } from './janggi'
 
 export type Score = { cp?: number; mate?: number }
@@ -193,4 +193,27 @@ function MaterialLine({ side, captured, lead }: { side: "cho" | "han"; captured:
       {lead > 0 && <span className="lead">+{fmt(lead)}</span>}
     </div>
   )
+}
+
+/** True while `key` is held down (momentary, not a toggle; key auto-repeat is ignored). */
+export function useHeldKey(key: string, active: boolean) {
+  const [held, setHeld] = useState(false)
+  useEffect(() => {
+    if (!active) return setHeld(false)
+    const typing = (e: KeyboardEvent) => e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement
+    const down = (e: KeyboardEvent) => {
+      if (e.key === key && !typing(e) && !e.metaKey && !e.ctrlKey) setHeld(true)
+    }
+    const up = (e: KeyboardEvent) => e.key === key && setHeld(false)
+    const reset = () => setHeld(false)
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    window.addEventListener('blur', reset)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+      window.removeEventListener('blur', reset)
+    }
+  }, [key, active])
+  return held
 }

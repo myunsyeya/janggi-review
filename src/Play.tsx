@@ -8,7 +8,7 @@ import { Conn, api, saveToken, savedToken, type GameSummary, type GameView, type
 import { treeFromMoves } from "./tree"
 import { SetupIcon, SetupPicker } from "./SetupIcon"
 import GameRow, { loadGameImport } from "./GameRow"
-import { Avatar, EvalBar, IconFirst, IconLast, IconNext, IconPrev, PlayerTag, formatClock } from "./ui"
+import { Avatar, EvalBar, useHeldKey, IconFirst, IconLast, IconNext, IconPrev, PlayerTag, formatClock } from "./ui"
 
 const tagged = (u: { nick: string; tag: string }) => `${u.nick}#${u.tag}`
 const SIDE_NAME: Record<Side, string> = { cho: "초", han: "한" }
@@ -36,6 +36,7 @@ export default function Play({
   const [hoverSetup, setHoverSetup] = useState<Setup | null>(null)
   const [viewPly, setViewPly] = useState<number | null>(null) // null = follow the live position
   const [, tick] = useState(0)
+  const peek = useHeldKey("f", active) // hold f to look from the opponent's side
   const conn = useRef<Conn | null>(null)
 
   // connect while logged in
@@ -176,7 +177,7 @@ export default function Play({
 
   const mat = material(fen)
   const matFor = (s: Side) => ({ ...mat[s], lead: mat[s].score - mat[s === "cho" ? "han" : "cho"].score })
-  const flipped = mySide === 'han'
+  const flipped = (mySide === "han") !== peek
   const bottom: Side = flipped ? 'han' : 'cho'
   const top: Side = flipped ? 'cho' : 'han'
   const inGame = game && game.phase !== 'over'

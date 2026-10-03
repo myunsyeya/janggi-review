@@ -22,6 +22,7 @@ import {
 } from './janggi'
 import { CLASS_INFO, REVIEW_DEPTH, REVIEW_MULTIPV, choWin, reviewMove, type MoveReview, type PosEval, type PrevMove } from "./review"
 import { ROOT, addMove, deleteFrom, isMainline, lineFrom, mainline, newTree, pathTo, promote, treeFromMoves, type Tree } from './tree'
+import { useHeldKey } from "./ui"
 import { EvalBar, IconAnalysis, IconFirst, IconLast, IconNext, IconPrev, IconReview, LineMoves, PlayerTag, evalSide } from './ui'
 
 const LINE_PLIES = 30 // the whole principal variation, practically
@@ -55,7 +56,9 @@ export default function Analysis({
   const [tree, setTree] = useState<Tree>(() => newTree(startFen('마상상마', '마상상마')))
   const [cur, setCur] = useState(ROOT)
   const [names, setNames] = useState<{ cho: string; han: string }>({ cho: '초 (楚)', han: '한 (漢)' })
-  const [flipped, setFlipped] = useState(false)
+  const [baseFlipped, setFlipped] = useState(false)
+  // holding f shows the board from the other side; releasing it goes back
+  const flipped = baseFlipped !== useHeldKey("f", active)
   const [analysis, setAnalysis] = useState<EngineAnalysis | null>(null)
   const [showSetup, setShowSetup] = useState(false)
   const [tab, setTab] = useState<'analysis' | 'review'>('analysis')
@@ -176,7 +179,6 @@ export default function Analysis({
       else if (e.key === 'ArrowRight') goForward()
       else if (e.key === 'ArrowUp' || e.key === 'Home') goStart()
       else if (e.key === 'ArrowDown' || e.key === 'End') goEnd()
-      else if (e.key === 'f') setFlipped((f) => !f)
       else return
       e.preventDefault()
     }
