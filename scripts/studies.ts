@@ -28,7 +28,7 @@ fs.rmSync(OUT, { recursive: true, force: true })
 fs.mkdirSync(OUT, { recursive: true })
 const index = []
 // position (board + side to move) -> the name a study gave it, and where
-const names: Record<string, { name: string; study: string; chapter: string; path: string }> = {}
+const names: Record<string, { name: string; study: string; chapter: string; path: string; moves: string[] }> = {}
 const positionKey = (fen: string) => fen.split(' ').slice(0, 2).join(' ')
 for (const id of fs.existsSync(SRC) ? fs.readdirSync(SRC).sort() : []) {
   const dir = path.join(SRC, id)
@@ -50,19 +50,19 @@ for (const id of fs.existsSync(SRC) ? fs.readdirSync(SRC).sort() : []) {
   for (const t of meta.topics) if (!TOPICS[t]) throw new Error(`${id}: topic "${t}" has no English path in content/studies/topics.json`)
   chapters.forEach((ch, i) => {
     const chapterPath = i === 0 ? `/study/${id}` : `/study/${id}/${ch.id}`
-    const visit = (node: StudyNode, fen: string) => {
+    const visit = (node: StudyNode, fen: string, moves: string[]) => {
       for (const c of node.ch) {
         const after = withBoard(fen, (b) => (b.push(c.uci!), b.fen()))
         if (c.name) {
           const key = positionKey(after)
           const had = names[key]
           if (had && had.name !== c.name) throw new Error(`${id}/${ch.id}: this position is already named "${had.name}" (${had.path}); one name per position`)
-          names[key] ??= { name: c.name, study: id, chapter: ch.id, path: chapterPath }
+          names[key] ??= { name: c.name, study: id, chapter: ch.id, path: chapterPath, moves: [...moves, c.uci!] }
         }
-        visit(c, after)
+        visit(c, after, [...moves, c.uci!])
       }
     }
-    visit(ch.root, startFen(ch.cho, ch.han))
+    visit(ch.root, startFen(ch.cho, ch.han), [])
   })
   fs.writeFileSync(path.join(OUT, `${id}.json`), JSON.stringify({ id, ...meta, chapters }))
   index.push({ id, ...meta, chapters: chapters.map((c) => ({ id: c.id, name: c.name, topics: c.topics })) })

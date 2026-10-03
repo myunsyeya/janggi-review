@@ -60,6 +60,7 @@ function lineFromUrl(url: URL): GameImport | null {
 export default function App() {
   const [rulesReady, setRulesReady] = useState(false)
   const [path, setPath] = useState(pathFromLocation)
+  const [search, setSearch] = useState(() => location.search) // study pages: ?moves=… opens that position
   const [load, setLoad] = useState<GameImport | null>(null)
   const presence = usePresence()
   const [seek, setSeek] = useState(0) // bumped to make the play page join the queue
@@ -72,7 +73,10 @@ export default function App() {
       const line = lineFromUrl(new URL(location.href))
       if (line) setLoad(line)
     })
-    const onPop = () => setPath(pathFromLocation())
+    const onPop = () => {
+      setPath(pathFromLocation())
+      setSearch(location.search)
+    }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
@@ -83,9 +87,10 @@ export default function App() {
     if (page === 'doc' || page === 'study') window.scrollTo(0, 0)
   }, [path, page])
 
-  const go = (to: string) => {
-    if (location.pathname !== to) history.pushState(null, '', to)
+  const go = (to: string, query = '') => {
+    if (location.pathname + location.search !== to + query) history.pushState(null, '', to + query)
     setPath(to)
+    setSearch(query)
   }
 
   /** In-app navigation for plain clicks on links to our own pages; other clicks behave normally. */
@@ -97,7 +102,7 @@ export default function App() {
     e.preventDefault()
     const line = rulesReady ? lineFromUrl(url) : null
     if (line) setLoad(line)
-    go(url.pathname)
+    go(url.pathname, studyRoute(url.pathname) ? url.search : '')
   }
 
   const NavLink = ({ to, children, className = '' }: { to: string; children: ReactNode; className?: string }) => (
@@ -179,7 +184,7 @@ export default function App() {
       )}
       {study && !study.list && (
         <main className="page">
-          <StudyPage id={study.id} chapterId={study.chapter} active rulesReady={rulesReady} />
+          <StudyPage id={study.id} chapterId={study.chapter} at={new URLSearchParams(search).get('moves')} active rulesReady={rulesReady} />
         </main>
       )}
       {doc && (

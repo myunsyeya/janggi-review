@@ -12,7 +12,7 @@ export function nameOpening(start: string, line: string[], names: PositionNames)
   const fens = replay(start, line).map((m) => m.fen)
   for (let i = fens.length - 1; i >= 0; i--) {
     const hit = names[positionKey(fens[i])]
-    if (hit) return { ...base, name: `${base.name.split(' · ')[0]} · ${hit.name}`, named: { title: hit.name, page: hit.path } }
+    if (hit) return { ...base, name: `${base.name.split(' · ')[0]} · ${hit.name}`, named: { title: hit.name, page: hit.moves ? `${hit.path}?moves=${hit.moves.join(',')}` : hit.path } }
   }
   return base
 }

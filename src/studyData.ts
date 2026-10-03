@@ -194,7 +194,7 @@ export function loadTheory() {
   }))
 }
 
-export type PositionNames = Record<string, { name: string; study: string; chapter: string; path: string }>
+export type PositionNames = Record<string, { name: string; study: string; chapter: string; path: string; moves?: string[] }>
 let namesPromise: Promise<PositionNames> | null = null
 /** Names that studies gave to positions ([%name …] in a chapter), keyed by positionKey */
 export const loadNames = () => (namesPromise ??= fetch('/studies/names.json').then((r) => (r.ok ? r.json() : {})))

@@ -12,11 +12,14 @@ import { IconFirst, IconLast, IconNext, IconPrev, useHeldKey } from './ui'
 export default function StudyPage({
   id,
   chapterId,
+  at,
   active,
   rulesReady,
 }: {
   id: string
   chapterId: string | null
+  /** moves (uci, comma-separated) leading to the position to open, e.g. from an opening name's link */
+  at?: string | null
   active: boolean
   rulesReady: boolean
 }) {
@@ -42,10 +45,20 @@ export default function StudyPage({
 
   const chapter = study ? (study.chapters.find((c) => c.id === chapterId) ?? study.chapters[0]) : null
   const nodes = useMemo(() => (chapter && rulesReady ? chapterNodes(chapter) : []), [chapter, rulesReady])
+  // open at the start, or at the position given by ?moves= when the chapter has it
   useEffect(() => {
-    setCur(0)
-    lastSoundAt.current = 0
-  }, [chapter])
+    let target = 0
+    for (const uci of at?.split(',').filter(Boolean) ?? []) {
+      const next = nodes[target]?.children.find((c) => nodes[c].uci === uci)
+      if (next === undefined) {
+        target = 0
+        break
+      }
+      target = next
+    }
+    setCur(target)
+    lastSoundAt.current = target
+  }, [nodes, at])
   useEffect(() => {
     if (study && chapter) document.title = `${study.title}: ${chapter.name} | 초한 장기`
   }, [study, chapter])
@@ -162,7 +175,7 @@ export default function StudyPage({
       </section>
 
       <section className="study-side">
-        <OpeningBar opening={opening} />
+        <OpeningBar opening={opening} link={opening?.named?.page?.split('?')[0] !== chapterHref(study, chapter.id)} />
         <StudyTree nodes={nodes} cur={cur} onSelect={setCur} />
         {next(node).length > 1 && (
           <div className="study-next">
