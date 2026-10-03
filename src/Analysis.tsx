@@ -275,7 +275,8 @@ export default function Analysis({
   const treeReviews = useMemo(() => {
     const m = new Map<number, MoveReview>()
     if (!rulesReady) return m
-    const walk = (id: number, ucis: string[]) => {
+    // theory only runs from the first move without a break: once a line leaves it, later moves are not theory
+    const walk = (id: number, ucis: string[], inBook: boolean) => {
       const n = tree.nodes[id]
       const prev: PrevMove | null =
         n.parent === null ? null : { uci: n.uci, before: tree.nodes[n.parent].fen, review: m.get(id) ?? null }
@@ -285,13 +286,13 @@ export default function Analysis({
         // theory (이론에 있는 수): a move that builds the recognized formation, or a position from the study notes,
         // unless the engine calls it a mistake
         const inTheory = () => theory.has(positionKey(tree.nodes[c].fen)) || classifyOpening(start, line).book.has(line.length - 1)
-        if (r && r.loss <= 0.1 && line.length <= 40 && inTheory())
-          r = { ...r, cls: 'book', isBest: true }
+        const book = inBook && !!r && r.loss <= 0.1 && line.length <= 40 && inTheory()
+        if (book) r = { ...r!, cls: 'book', isBest: true }
         if (r) m.set(c, r)
-        walk(c, line)
+        walk(c, line, book)
       }
     }
-    walk(ROOT, [])
+    walk(ROOT, [], true)
     return m
   }, [rulesReady, tree, evals, start, theory])
   const reviews = useMemo(() => main.map((id) => treeReviews.get(id) ?? null), [main, treeReviews])
