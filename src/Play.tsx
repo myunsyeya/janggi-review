@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Board from './Board'
 import MoveList from './MoveList'
 import type { GameImport } from './Analysis'
-import { type Setup, isPass, material, resultLabel, parsePieces, parseUci, replay, startFen, withBoard } from "./janggi"
+import { type Setup, isPass, material, moveRaw, premoveTargets, resultLabel, parsePieces, parseUci, replay, startFen, withBoard } from "./janggi"
 import { moveSound, playSound } from "./sound"
 import { Conn, api, saveToken, savedToken, type GameSummary, type GameView, type PublicUser, type Side } from './net'
 import { treeFromMoves } from "./tree"
@@ -135,23 +135,10 @@ export default function Play({
   const [premoves, setPremoves] = useState<string[]>([])
   const premoveView = useMemo(() => {
     if (!rulesReady || !game || game.phase !== "play" || !atLive || !mySide || game.turn === mySide) return null
-    const mine = (f: string) => {
-      const parts = f.split(" ")
-      parts[1] = mySide === "cho" ? "w" : "b"
-      return parts.join(" ")
-    }
-    try {
-      return withBoard(mine(fen), (b) => {
-        for (const m of premoves) {
-          if (!b.legalMoves().split(" ").includes(m)) break
-          b.push(m)
-          b.setFen(mine(b.fen()))
-        }
-        return { fen: b.fen(), dests: b.legalMoves().split(" ").filter((m) => m && !isPass(m)) }
-      })
-    } catch {
-      return null
-    }
+    // queued moves are drawn without rule checks (a recapture lands on our own piece for now);
+    // legality is checked for real when each one is sent
+    const shown = premoves.reduce(moveRaw, fen)
+    return { fen: shown, dests: premoveTargets(shown, mySide) }
   }, [rulesReady, game, atLive, mySide, fen, premoves])
   const premoveDests = premoves.length < 10 ? (premoveView?.dests ?? []) : []
   const firedAt = useRef(-1) // number of moves when we last sent a premove, so one goes per turn

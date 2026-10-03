@@ -216,3 +216,65 @@ export function resultLabel(r: GameResult, reason?: string | null) {
   const head = r === '1-0' ? '1-0 (초 승)' : r === '0-1' ? '0-1 (한 승)' : '½-½ (무승부)'
   return reason ? `${head} · ${reason}` : head
 }
+
+/** FEN placement field from a square -> piece map. */
+function placement(pieces: Map<string, string>) {
+  const rows: string[] = []
+  for (let rank = 10; rank >= 1; rank--) {
+    let row = ''
+    let empty = 0
+    for (let f = 0; f < 9; f++) {
+      const p = pieces.get(FILES[f] + rank)
+      if (p) {
+        if (empty) row += empty
+        row += p
+        empty = 0
+      } else empty++
+    }
+    rows.push(row + (empty ? empty : ''))
+  }
+  return rows.join('/')
+}
+
+/** Moves a piece without checking any rules (for drawing premoves). Side to move is left as is. */
+export function moveRaw(fen: string, uci: string): string {
+  const { from, to } = parseUci(uci)
+  const pieces = parsePieces(fen)
+  const p = pieces.get(from)
+  if (!p || from === to) return fen
+  pieces.delete(from)
+  pieces.set(to, p)
+  const parts = fen.split(' ')
+  parts[0] = placement(pieces)
+  return parts.join(' ')
+}
+
+/**
+ * Where `side` could premove in `fen`, as if it were their turn: the normal moves, plus moves onto
+ * their own pieces (a recapture, in case the opponent takes there first).
+ */
+export function premoveTargets(fen: string, side: 'cho' | 'han'): string[] {
+  const parts = fen.split(' ')
+  parts[1] = side === 'cho' ? 'w' : 'b'
+  const mine = parts.join(' ')
+  const legal = (f: string) => {
+    try {
+      return withBoard(f, (b) => b.legalMoves().split(' ').filter((m) => m && !isPass(m)))
+    } catch {
+      return []
+    }
+  }
+  const out = new Set(legal(mine))
+  const pieces = parsePieces(mine)
+  const enemyPawn = side === 'cho' ? 'p' : 'P'
+  for (const [sq, p] of pieces) {
+    if (isCho(p) !== (side === 'cho') || p.toLowerCase() === 'k') continue
+    // pretend an enemy piece stands there (a soldier: every piece, even a cannon, may take it)
+    const trial = new Map(pieces)
+    trial.set(sq, enemyPawn)
+    const f = mine.split(' ')
+    f[0] = placement(trial)
+    for (const m of legal(f.join(' '))) if (parseUci(m).to === sq) out.add(m)
+  }
+  return [...out]
+}
