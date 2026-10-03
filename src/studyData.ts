@@ -1,6 +1,6 @@
 // Client side of studies: the compiled JSON (public/studies, built from content/studies) and a flat node table
 // with positions for the viewer.
-import { startFen, withBoard } from './janggi'
+import { sanOf, startFen, withBoard } from './janggi'
 import type { Shape, StudyChapter, StudyNode } from './studyFormat'
 
 export interface StudyMeta {
@@ -28,6 +28,10 @@ export interface ViewNode {
   glyphs?: string[]
   shapes?: Shape[]
   children: number[]
+  /** a move only mentioned in a comment: reachable by clicking it there, not drawn in the tree */
+  hidden?: boolean
+  /** moves written in the comment text that can be clicked: text range -> node */
+  links?: { start: number; end: number; target: number }[]
 }
 
 let indexPromise: Promise<StudyMeta[]> | null = null
@@ -65,7 +69,55 @@ export function chapterNodes(ch: StudyChapter): ViewNode[] {
     for (const c of src.ch) add(c, n)
   }
   for (const c of ch.root.ch) add(c, nodes[0])
+  for (const n of [...nodes]) if (n.comment) n.links = commentLinks(nodes, n)
   return nodes
+}
+
+// "2...Hd8 3. Hg3 Hg8 4. Ee4" in a comment: a move number, then moves in this site's notation
+const SAN = String.raw`(?:pass|[KAEHCR][a-i]?(?:10|[1-9])?x?[a-i](?:10|[1-9])|[a-i](?:10|[1-9])?x?[a-i](?:10|[1-9])|[a-i](?:10|[1-9]))[+#]?`
+const SEQ = new RegExp(String.raw`(\d+)\.(\.\.)?\s?(${SAN}(?:\s+(?:\d+\.(?:\.\.)?\s?)?${SAN})*)`, 'g')
+const TOKEN = new RegExp(String.raw`(?:\d+\.(?:\.\.)?\s?)?(${SAN})`, 'g')
+
+/**
+ * Finds move sequences written in a node's comment and turns them into clickable links. The first move's number says
+ * where the sequence starts: from the line leading to this node, or continuing down its main line. Moves already in the
+ * tree are reused; others become hidden nodes. Anything that is not legal there stays plain text.
+ */
+function commentLinks(nodes: ViewNode[], n: ViewNode) {
+  const path: ViewNode[] = []
+  for (let a: ViewNode | undefined = n; a; a = a.parent === null ? undefined : nodes[a.parent]) path.unshift(a)
+  const links: { start: number; end: number; target: number }[] = []
+  for (const m of n.comment!.matchAll(SEQ)) {
+    const ply = (+m[1] - 1) * 2 + (m[2] ? 2 : 1)
+    let base: ViewNode | undefined = path[ply - 1]
+    if (!base) {
+      base = n
+      while (base && base.ply < ply - 1) base = base.children.length ? nodes[base.children[0]] : undefined
+    }
+    if (!base || base.ply !== ply - 1) continue
+    const seqStart = m.index! + m[0].length - m[3].length
+    for (const t of m[3].matchAll(TOKEN)) {
+      const word = t[1].replace(/[+#]/g, '')
+      const from: ViewNode = base
+      const uci: string | undefined = withBoard(from.fen, (b) => {
+        const legal = b.legalMoves().split(' ').filter(Boolean)
+        return legal.find((u) => sanOf(b, u, legal).replace(/[+#]/g, '') === word)
+      })
+      if (!uci) break
+      let next: ViewNode | undefined = base.children.map((c) => nodes[c]).find((c) => c.uci === uci)
+      if (!next) {
+        const fen: string = withBoard(from.fen, (b) => (b.push(uci), b.fen()))
+        const san: string = withBoard(from.fen, (b) => sanOf(b, uci))
+        next = { id: nodes.length, parent: base.id, uci, san, fen, ply: base.ply + 1, children: [], hidden: true }
+        nodes.push(next)
+        base.children.push(next.id)
+      }
+      const at = seqStart + t.index! + t[0].length - t[1].length
+      links.push({ start: at, end: at + t[1].length, target: next.id })
+      base = next
+    }
+  }
+  return links.length ? links : undefined
 }
 
 export const GLYPH_COLOR: Record<string, string> = {

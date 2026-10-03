@@ -49,6 +49,8 @@ export default function StudyPage({
   }, [study, chapter])
 
   const node = nodes[cur]
+  // moves only mentioned in comments are hidden: they are not offered as next moves, except to continue such a line
+  const next = (n: ViewNode) => (n.hidden ? n.children : n.children.filter((c) => !nodes[c].hidden))
 
   // moving forward along the line (one move or a jump ahead) plays the sound of the move arrived at; going back is silent
   const lastSoundAt = useRef(0)
@@ -66,7 +68,7 @@ export default function StudyPage({
   const go = (to: number | undefined) => to !== undefined && nodes[to] && setCur(to)
   const lineEnd = (from: number) => {
     let n = nodes[from]
-    while (n.children.length) n = nodes[n.children[0]]
+    while (next(n).length) n = nodes[next(n)[0]]
     return n.id
   }
 
@@ -75,7 +77,7 @@ export default function StudyPage({
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement) return
       if (e.key === 'ArrowLeft') go(node.parent ?? undefined)
-      else if (e.key === 'ArrowRight') go(node.children[0])
+      else if (e.key === 'ArrowRight') go(next(node)[0])
       else if (e.key === 'ArrowUp' || e.key === 'Home') go(0)
       else if (e.key === 'ArrowDown' || e.key === 'End') go(lineEnd(node.id))
       else return
@@ -157,9 +159,9 @@ export default function StudyPage({
       <section className="study-side">
         <OpeningBar opening={opening} />
         <StudyTree nodes={nodes} cur={cur} onSelect={setCur} />
-        {node.children.length > 1 && (
+        {next(node).length > 1 && (
           <div className="study-next">
-            {node.children.map((c, i) => (
+            {next(node).map((c, i) => (
               <button key={c} onClick={() => setCur(c)} className={i === 0 ? 'main' : ''}>
                 <span className="study-next-kind">{i > 0 ? '변화' : onMainLine(nodes, node) ? '주 수순' : '이어서'}</span>
                 {moveLabel(nodes[c])}
@@ -175,10 +177,10 @@ export default function StudyPage({
           <button title="이전 (←)" disabled={node.parent === null} onClick={() => go(node.parent ?? undefined)}>
             <IconPrev />
           </button>
-          <button title="다음 (→)" disabled={!node.children.length} onClick={() => go(node.children[0])}>
+          <button title="다음 (→)" disabled={!next(node).length} onClick={() => go(next(node)[0])}>
             <IconNext />
           </button>
-          <button title="이 줄의 끝 (↓)" disabled={!node.children.length} onClick={() => go(lineEnd(node.id))}>
+          <button title="이 줄의 끝 (↓)" disabled={!next(node).length} onClick={() => go(lineEnd(node.id))}>
             <IconLast />
           </button>
           <button title="판 뒤집기 (f를 누르는 동안)" onClick={() => setFlipped((f) => !f)}>
@@ -212,6 +214,9 @@ function StudyTree({ nodes, cur, onSelect }: { nodes: ViewNode[]; cur: number; o
     ref.current?.querySelector('.active')?.scrollIntoView({ block: 'nearest' })
   }, [cur])
 
+  const real = (n: ViewNode) => n.children.filter((c) => !nodes[c].hidden)
+  const text = (n: ViewNode) => <CommentText node={n} cur={cur} onSelect={onSelect} />
+
   const move = (n: ViewNode, withNumber: boolean) => (
     <span key={'m' + n.id} className={`tv-move ${cur === n.id ? 'active' : ''}`} onClick={() => onSelect(n.id)}>
       {withNumber && <span className="tv-num">{Math.ceil(n.ply / 2) + (n.ply % 2 ? '.' : '...')}</span>}
@@ -232,13 +237,13 @@ function StudyTree({ nodes, cur, onSelect }: { nodes: ViewNode[]; cur: number; o
       if (n.comment) {
         out.push(
           <span key={'c' + n.id} className="tv-inline-comment">
-            {n.comment}
+            {text(n)}
           </span>,
         )
         number = true
       }
       if (!first) {
-        for (const alt of nodes[n.parent!].children.slice(1)) {
+        for (const alt of real(nodes[n.parent!]).slice(1)) {
           out.push(
             <span key={'p' + alt} className="tv-paren">
               ({line(alt)})
@@ -248,13 +253,18 @@ function StudyTree({ nodes, cur, onSelect }: { nodes: ViewNode[]; cur: number; o
         }
       }
       first = false
-      n = n.children.length ? nodes[n.children[0]] : undefined
+      n = real(n).length ? nodes[real(n)[0]] : undefined
     }
     return out
   }
 
   const items: ReactNode[] = []
-  if (nodes[0].comment) items.push(<p key="root" className="tv-comment">{nodes[0].comment}</p>)
+  if (nodes[0].comment)
+    items.push(
+      <p key="root" className="tv-comment">
+        {text(nodes[0])}
+      </p>,
+    )
   let row: ReactNode[] = []
   let rowNo = 0
   const flush = () => {
@@ -267,7 +277,7 @@ function StudyTree({ nodes, cur, onSelect }: { nodes: ViewNode[]; cur: number; o
     )
     row = []
   }
-  for (let n: ViewNode | undefined = nodes[0].children.length ? nodes[nodes[0].children[0]] : undefined; n; ) {
+  for (let n: ViewNode | undefined = real(nodes[0]).length ? nodes[real(nodes[0])[0]] : undefined; n; ) {
     const cho = n.ply % 2 === 1
     if (cho) {
       flush()
@@ -277,14 +287,14 @@ function StudyTree({ nodes, cur, onSelect }: { nodes: ViewNode[]; cur: number; o
       row.push(<span key={'dots' + n.id} className="tv-move tv-dots">…</span>)
     }
     row.push(move(n, false))
-    const alts = nodes[n.parent!].children.slice(1)
+    const alts = real(nodes[n.parent!]).slice(1)
     if (n.comment || alts.length) {
       if (cho) row.push(<span key={'gap' + n.id} className="tv-move tv-dots">…</span>)
       flush()
       if (n.comment)
         items.push(
           <p key={'c' + n.id} className="tv-comment">
-            {n.comment}
+            {text(n)}
           </p>,
         )
       if (alts.length)
@@ -298,7 +308,7 @@ function StudyTree({ nodes, cur, onSelect }: { nodes: ViewNode[]; cur: number; o
           </div>,
         )
     } else if (!cho) flush()
-    n = n.children.length ? nodes[n.children[0]] : undefined
+    n = real(n).length ? nodes[real(n)[0]] : undefined
   }
   flush()
 
@@ -309,4 +319,30 @@ function StudyTree({ nodes, cur, onSelect }: { nodes: ViewNode[]; cur: number; o
       ))}
     </div>
   )
+}
+
+/** A comment with the moves written in it made clickable */
+function CommentText({ node, cur, onSelect }: { node: ViewNode; cur: number; onSelect: (id: number) => void }) {
+  const text = node.comment ?? ''
+  if (!node.links) return <>{text}</>
+  const out: ReactNode[] = []
+  let at = 0
+  for (const l of node.links) {
+    out.push(text.slice(at, l.start))
+    out.push(
+      <span
+        key={l.start}
+        className={`tv-link ${cur === l.target ? 'active' : ''}`}
+        onClick={(e) => {
+          e.stopPropagation()
+          onSelect(l.target)
+        }}
+      >
+        {text.slice(l.start, l.end)}
+      </span>,
+    )
+    at = l.end
+  }
+  out.push(text.slice(at))
+  return <>{out}</>
 }

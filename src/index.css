@@ -2362,6 +2362,20 @@ button {
   margin: 0 4px;
   white-space: pre-wrap;
 }
+.tv-link {
+  cursor: pointer;
+  color: #9cc7f2;
+  border-radius: 3px;
+  padding: 0 1px;
+}
+.tv-link:hover {
+  background: #3893e855;
+  color: #fff;
+}
+.tv-link.active {
+  background: #3893e8;
+  color: #fff;
+}
 .tv-paren {
   color: #ffffff80;
 }
