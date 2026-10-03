@@ -36,7 +36,7 @@ export default function Play({
   const [hoverSetup, setHoverSetup] = useState<Setup | null>(null)
   const [viewPly, setViewPly] = useState<number | null>(null) // null = follow the live position
   const [, tick] = useState(0)
-  const peek = useHeldKey("f", active) // hold f to look from the opponent's side
+  const peek = useHeldKey("KeyF", active) // hold f to look from the opponent's side
   const conn = useRef<Conn | null>(null)
 
   // connect while logged in

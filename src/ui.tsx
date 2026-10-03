@@ -186,7 +186,7 @@ function MaterialLine({ side, captured, lead }: { side: "cho" | "han"; captured:
   return (
     <div className="material" title="점수 차이 (한의 덤 1.5 포함)">
       {captured.map((t, i) => (
-        <span key={i} className={`cap-piece ${victim ? 'han' : 'cho'} ${t}`}>
+        <span key={i} className={`cap-piece ${victim ? "han" : "cho"} ${t} ${captured[i - 1] === t ? "same" : ""}`}>
           {CAPTURED_HANJA[t][victim]}
         </span>
       ))}
@@ -195,25 +195,39 @@ function MaterialLine({ side, captured, lead }: { side: "cho" | "han"; captured:
   )
 }
 
-/** True while `key` is held down (momentary, not a toggle; key auto-repeat is ignored). */
-export function useHeldKey(key: string, active: boolean) {
+/** True while the physical key `code` (e.g. "KeyF") is held: momentary, not a toggle. Using the
+ * key position keeps it working with the Korean IME (where f types ㄹ) and Caps Lock. */
+export function useHeldKey(code: string, active: boolean) {
   const [held, setHeld] = useState(false)
   useEffect(() => {
     if (!active) return setHeld(false)
     const typing = (e: KeyboardEvent) => e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement
+    // Remote-desktop tools may turn a held key into rapid up/down pairs; a release only counts
+    // if the key stays up briefly, so the board does not flicker under the mouse.
+    let release = 0
     const down = (e: KeyboardEvent) => {
-      if (e.key === key && !typing(e) && !e.metaKey && !e.ctrlKey) setHeld(true)
+      if (e.code !== code || typing(e) || e.metaKey || e.ctrlKey) return
+      clearTimeout(release)
+      setHeld(true)
     }
-    const up = (e: KeyboardEvent) => e.key === key && setHeld(false)
-    const reset = () => setHeld(false)
+    const up = (e: KeyboardEvent) => {
+      if (e.code !== code) return
+      clearTimeout(release)
+      release = window.setTimeout(() => setHeld(false), 100)
+    }
+    const reset = () => {
+      clearTimeout(release)
+      setHeld(false)
+    }
     window.addEventListener('keydown', down)
     window.addEventListener('keyup', up)
     window.addEventListener('blur', reset)
     return () => {
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
-      window.removeEventListener('blur', reset)
+      window.removeEventListener("blur", reset)
+      clearTimeout(release)
     }
-  }, [key, active])
+  }, [code, active])
   return held
 }

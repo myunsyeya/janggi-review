@@ -1644,3 +1644,19 @@ button {
 .player {
   height: 44px;
 }
+
+/* captured pieces: same kind overlap like chess.com, a small gap between kinds */
+.material {
+  gap: 0;
+}
+.cap-piece {
+  margin-left: 3px;
+  box-shadow: -1px 0 0 1px #262421;
+  position: relative;
+}
+.cap-piece:first-child {
+  margin-left: 0;
+}
+.cap-piece.same {
+  margin-left: -9px;
+}

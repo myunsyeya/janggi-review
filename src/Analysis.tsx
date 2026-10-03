@@ -58,7 +58,7 @@ export default function Analysis({
   const [names, setNames] = useState<{ cho: string; han: string }>({ cho: '초 (楚)', han: '한 (漢)' })
   const [baseFlipped, setFlipped] = useState(false)
   // holding f shows the board from the other side; releasing it goes back
-  const flipped = baseFlipped !== useHeldKey("f", active)
+  const flipped = baseFlipped !== useHeldKey("KeyF", active)
   const [analysis, setAnalysis] = useState<EngineAnalysis | null>(null)
   const [showSetup, setShowSetup] = useState(false)
   const [tab, setTab] = useState<'analysis' | 'review'>('analysis')
