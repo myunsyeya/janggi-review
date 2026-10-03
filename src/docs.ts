@@ -103,3 +103,67 @@ export const PRIVACY_PAGE: PageMeta = {
 <p>이 방침은 2026년 10월 3일부터 적용됩니다. 내용이 바뀌면 이 페이지에서 알려드립니다.</p>
 <nav><a href="/">온라인 대국</a> · <a href="/licenses">소스 코드와 라이선스</a></nav>`,
 }
+
+export const NOTATION_PAGE: PageMeta = {
+  path: '/notation',
+  title: '기보 표기법 — Hd3, ef4+ 읽는 법 | 초한 장기',
+  description: '초한 장기의 기보 표기법. 줄 a~i와 선 1~10의 좌표, 기물 글자(K·A·E·H·C·R), 잡기·장군·한수쉼, 수 번호와 평가 읽는 법.',
+  changefreq: 'yearly',
+  priority: 0.5,
+  doc: true,
+  body: `
+<h1>기보 표기법</h1>
+<p>초한 장기의 분석판, 게임 리뷰, 연구는 모두 같은 방식으로 수를 적어요. 체스의 국제 표기법(SAN)을 장기에 맞게 옮긴 것이라,
+한국에서 흔히 쓰는 숫자 좌표식 기보와는 생김새가 달라요. 이 페이지 하나만 보면 <code>1. ab4 ih7 2. Hg3 Hd8 3. Ce3</code> 같은 수순을 읽을 수 있어요.</p>
+
+<h2>판의 좌표</h2>
+<ul>
+  <li><b>줄</b>(세로)은 <b>a~i</b>예요. 초 쪽에서 판을 볼 때 왼쪽 끝이 a, 오른쪽 끝이 i예요.</li>
+  <li><b>선</b>(가로)은 <b>1~10</b>이에요. 초의 궁이 있는 쪽 끝이 1, 한 쪽 끝이 10이에요.</li>
+  <li>칸은 줄과 선을 붙여 불러요. 초의 궁은 <b>e2</b>, 한의 궁은 <b>e9</b>에서 시작해요.</li>
+</ul>
+
+<h2>기물 글자</h2>
+<table>
+  <tr><th>글자</th><th>기물</th><th>영어 이름</th></tr>
+  <tr><td>K</td><td>궁(楚·漢)</td><td>King (General)</td></tr>
+  <tr><td>A</td><td>사(士)</td><td>Advisor (Guard)</td></tr>
+  <tr><td>E</td><td>상(象)</td><td>Elephant</td></tr>
+  <tr><td>H</td><td>마(馬)</td><td>Horse</td></tr>
+  <tr><td>C</td><td>포(包)</td><td>Cannon</td></tr>
+  <tr><td>R</td><td>차(車)</td><td>Chariot (Rook)</td></tr>
+  <tr><td>없음</td><td>졸·병(卒·兵)</td><td>Soldier (Pawn)</td></tr>
+</table>
+<p>체스의 N(나이트), B(비숍)와 헷갈리지 않도록 마는 H, 상은 E로 적어요.</p>
+
+<h2>수 적는 법</h2>
+<ul>
+  <li><b>기물 글자 + 도착 칸</b>: <code>Hd3</code>은 마가 d3로 가는 수, <code>Ce3</code>은 포가 e3로 가는 수예요.</li>
+  <li><b>졸·병은 글자 없이 도착 칸만</b>: <code>e5</code>는 졸이 e5로 가는 수예요.
+    잡을 때, 그리고 다른 졸도 같은 칸으로 갈 수 있을 때는 출발한 줄을 앞에 붙여요.
+    <code>ab4</code>는 a줄 졸이 b4로(c4 졸도 b4로 갈 수 있으니까), <code>ef4</code>는 e줄 졸이 f4로 옆걸음하는 수예요.</li>
+  <li><b>잡기는 x</b>: <code>Rxa10</code>은 차가 a10의 기물을 잡는 수예요.</li>
+  <li><b>같은 기물 둘이 같은 칸으로 갈 수 있으면</b> 출발한 줄을 넣어요: <code>Che3</code>은 h줄의 포가 e3로.
+    줄까지 같으면 출발한 선을, 그것도 같으면 출발 칸을 통째로 넣어요.</li>
+  <li><b>장군은 +, 외통은 #</b>: <code>ef4+</code>는 졸이 비키면서 장군이 되는 수예요.</li>
+  <li><b>한수쉼은 pass</b>예요.</li>
+</ul>
+
+<h2>수 번호</h2>
+<p>초가 먼저 둬요. <code>1. ab4</code>는 초의 첫 수, <code>1... ih7</code>은 한의 첫 수예요(번호 뒤 점 세 개는 한의 차례라는 뜻).
+그래서 <code>1. ab4 ih7 2. Hg3 Hd8 3. Ce3</code>은 이렇게 읽어요:
+초 a4 졸이 b4로, 한 i7 병이 h7로, 초 마가 g3로, 한 마가 d8로, 초 포가 e3(면)으로.</p>
+
+<h2>차림</h2>
+<p><b>마상상마</b>, <b>상마상마</b>처럼 적는 차림은 각자 자기 쪽에서 볼 때 왼쪽 마·상 자리(초는 b·c줄, 한은 h·g줄)부터
+오른쪽으로 읽어요. 초 상마상마는 b1 상, c1 마, g1 상, h1 마예요.</p>
+
+<h2>평가 숫자와 기호</h2>
+<ul>
+  <li><b>+0.43</b>처럼 앞에 +가 붙으면 초에게, −가 붙으면 한에게 유리하다는 엔진(Fairy-Stockfish NNUE)의 평가예요.
+    숫자가 클수록 차이가 커요. 엔진이 읽는 깊이에 따라 조금씩 달라져요.</li>
+  <li><b>!</b> 좋은 수, <b>!!</b> 아주 좋은 수, <b>?</b> 실수, <b>??</b> 큰 실수, <b>!?</b> 흥미로운 수, <b>?!</b> 의심스러운 수.</li>
+</ul>
+
+<nav><a href="/study">장기 연구</a> · <a href="/analysis">장기 분석판</a></nav>`,
+}

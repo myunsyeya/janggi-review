@@ -1,0 +1,16 @@
+{
+  "_comment": "Topic name (shown on the site) -> English path segment for /study/topic/<slug>. Every topic used in a study must be listed here.",
+  "귀마": "edge-horse",
+  "양귀마": "double-edge-horse",
+  "원앙마": "twin-horse",
+  "면상": "central-elephant",
+  "양귀상": "double-edge-elephant",
+  "맞상": "facing-elephants",
+  "엇상": "offset-elephants",
+  "정형포진": "standard-formation",
+  "변형포진": "variant-formation",
+  "면포": "central-cannon",
+  "진마": "inner-horse",
+  "최국수포진": "choi-guksu",
+  "김경만포진": "kim-gyeongman"
+}

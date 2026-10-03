@@ -2250,6 +2250,17 @@ button {
 .study-like.on {
   color: #e86b6b;
 }
+.study-notation {
+  margin-left: auto;
+  margin-right: 12px;
+  font-size: 13px;
+  color: #9cc7f2;
+  text-decoration: none;
+  font-weight: 400;
+}
+.study-notation:hover {
+  text-decoration: underline;
+}
 .study-topics {
   display: flex;
   flex-wrap: wrap;

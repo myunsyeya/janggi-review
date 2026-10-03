@@ -24,6 +24,16 @@ myunsyeya.com {
 		# the old learning pages became studies
 		redir /learn /study 301
 		redir /openings/* /study 301
+		# studies moved to English paths (2026-10-03)
+		redir /study/gwima-vs-gwima /study/edge-horse-vs-edge-horse-offset 301
+		redir /study/gwima-vs-gwima/01 /study/edge-horse-vs-edge-horse-offset 301
+		redir /study/gwima-vs-gwima/02 /study/edge-horse-vs-edge-horse-offset/central-cannon 301
+		redir /study/gwima-vs-gwima/03 /study/edge-horse-vs-edge-horse-offset/answering-central-cannon 301
+		redir /study/topic/귀마 /study/topic/edge-horse 301
+		redir /study/topic/엇상 /study/topic/offset-elephants 301
+		redir /study/topic/정형포진 /study/topic/standard-formation 301
+		redir /study/topic/최국수포진 /study/topic/choi-guksu 301
+		redir /study/topic/김경만포진 /study/topic/kim-gyeongman 301
 		@html path_regexp html ^/(.+)\.html$
 		redir @html /{re.html.1} 301
 		# /analysis is served from the pre-rendered analysis.html

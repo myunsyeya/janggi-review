@@ -136,11 +136,22 @@ export const SHAPE_COLOR: Record<Shape['color'], string> = {
   Y: '#e68f00',
 }
 
+type StudyRef = { id: string; chapters: { id: string; topics?: string[] }[] }
+
+/** A chapter's address. The first chapter is the study's own address. */
+export const chapterHref = (s: StudyRef, chapterId: string) =>
+  s.chapters[0]?.id === chapterId ? `/study/${s.id}` : `/study/${s.id}/${chapterId}`
+
 /** Where a topic leads within a study: the first chapter tagged with it, or the study itself */
-export function topicHref(s: { id: string; chapters: { id: string; topics?: string[] }[] }, topic: string | null) {
+export function topicHref(s: StudyRef, topic: string | null) {
   const ch = topic ? s.chapters.find((c) => c.topics?.includes(topic)) : undefined
-  return ch ? `/study/${s.id}/${ch.id}` : `/study/${s.id}`
+  return ch ? chapterHref(s, ch.id) : `/study/${s.id}`
 }
+
+/** topic name -> English path segment (/study/topic/<slug>) */
+let topicsPromise: Promise<Record<string, string>> | null = null
+export const loadTopics = () => (topicsPromise ??= fetch('/studies/topics.json').then((r) => (r.ok ? r.json() : {})))
+export const topicPath = (slugs: Record<string, string>, topic: string) => `/study/topic/${slugs[topic] ?? encodeURIComponent(topic)}`
 
 /** "3. Hc3" / "3... Hd8" */
 export const moveLabel = (n: ViewNode) => `${Math.ceil(n.ply / 2)}${n.ply % 2 ? '.' : '...'} ${n.san}`

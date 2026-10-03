@@ -145,6 +145,10 @@ const studyDir = path.join(DIST, 'studies')
 const studyIndex: { id: string; title: string; topics: string[]; description: string; updated: string; chapters: { id: string; name: string }[] }[] =
   fs.existsSync(path.join(studyDir, 'index.json')) ? JSON.parse(fs.readFileSync(path.join(studyDir, 'index.json'), 'utf8')) : []
 const studyUrls: { loc: string; lastmod: string; priority: number }[] = []
+const topicSlugs: Record<string, string> = fs.existsSync(path.join(studyDir, 'topics.json'))
+  ? JSON.parse(fs.readFileSync(path.join(studyDir, 'topics.json'), 'utf8'))
+  : {}
+const NOTATION_NOTE = `<p>기보는 이 사이트의 표기법으로 적었어요(H 마, E 상, C 포, R 차, K 궁, A 사, 졸·병은 글자 없음, 줄 a~i·선 1~10). + 평가는 초에게 유리하다는 뜻이에요. <a href="/notation">기보 표기법 보기</a></p>`
 
 function writePage(file: string, page: PageMeta) {
   const html = template
@@ -192,8 +196,10 @@ if (studyIndex.length) {
   studyUrls.push({ loc: '/study', lastmod: studyIndex.map((s) => s.updated).sort().at(-1)!, priority: 0.8 })
   for (const topic of new Set(studyIndex.flatMap((s) => s.topics))) {
     const items = studyIndex.filter((s) => s.topics.includes(topic))
-    const p = `/study/topic/${encodeURIComponent(topic)}`
-    writePage(`study/topic/${topic}.html`, {
+    const slug = topicSlugs[topic]
+    if (!slug) throw new Error(`no English path for topic ${topic}`)
+    const p = `/study/topic/${slug}`
+    writePage(`study/topic/${slug}.html`, {
       path: p,
       title: `${topic} — 장기 연구 | 초한 장기`,
       description: short(`${topic} 주제의 장기 연구 ${items.length}개: ${items.map((s) => s.title).join(', ')}`),
@@ -214,7 +220,7 @@ if (studyIndex.length) {
         description: short(i === 0 ? study.description : `${study.title} — ${ch.name}. ${study.description}`),
         changefreq: 'monthly',
         priority: 0.7,
-        body: `<h1>${esc(study.title)}: ${esc(ch.name)}</h1>${chapterHtml(ch.root)}${nav}`,
+        body: `<h1>${esc(study.title)}: ${esc(ch.name)}</h1>${NOTATION_NOTE}${chapterHtml(ch.root)}${nav}`,
       })
       studyUrls.push({ loc: p, lastmod: study.updated, priority: 0.7 })
     })

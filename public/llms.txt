@@ -12,4 +12,5 @@
 - [온라인 대국](https://myunsyeya.com/): 로그인(닉네임+비밀번호), 매칭, 대국, 내 대국 기록
 - [장기 분석판](https://myunsyeya.com/analysis): 엔진 분석, 변화도, 게임 리뷰
 - [장기 순위](https://myunsyeya.com/ranking): 레이팅 순위와 플레이어별 전적
+- [기보 표기법](https://myunsyeya.com/notation): 이 사이트의 기보 표기(H 마, E 상, C 포, R 차, K 궁, A 사, 졸은 글자 없음, 줄 a~i·선 1~10, + 평가는 초 유리) 읽는 법
 - [연구](https://myunsyeya.com/study): lichess 연구처럼 챕터별 수 트리와 해설·화살표로 정리한 포진 연구 노트 (엔진 분석 기반). 첫 연구: 귀마 대 귀마(엇상) — 첫 수, 초의 정형 면포, 최국수·김경만포진

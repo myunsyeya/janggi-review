@@ -1,7 +1,7 @@
 // Study list, laid out like lichess.org/study/topic/…: sub-navigation on the left, a card grid on the right.
 import { useEffect, useMemo, useState } from 'react'
 import { api } from './net'
-import { loadStudyIndex, timeAgo, topicHref, type StudyMeta } from './studyData'
+import { chapterHref, loadStudyIndex, loadTopics, timeAgo, topicHref, topicPath, type StudyMeta } from './studyData'
 
 const SORTS = [
   ['hot', '유행하는 순'],
@@ -13,14 +13,21 @@ const SORTS = [
 ] as const
 type Sort = (typeof SORTS)[number][0]
 
-export default function StudyList({ topic, active }: { topic: string | null; active: boolean }) {
+export default function StudyList({ topicSlug, active }: { topicSlug: string | null; active: boolean }) {
   const [all, setAll] = useState<StudyMeta[] | null>(null)
   const [likes, setLikes] = useState<Record<string, number>>({})
   const [sort, setSort] = useState<Sort>('hot')
 
+  const [slugs, setSlugs] = useState<Record<string, string>>({})
   useEffect(() => {
     loadStudyIndex().then(setAll)
+    loadTopics().then(setSlugs)
   }, [])
+  // the address has the English path; the page shows the Korean name
+  const topic = topicSlug ? (Object.keys(slugs).find((t) => slugs[t] === topicSlug) ?? (Object.keys(slugs).length ? topicSlug : null)) : null
+  useEffect(() => {
+    if (active && (!topicSlug || topic)) document.title = `${topic ?? '모든 연구'} — 장기 연구 | 초한 장기`
+  }, [active, topic, topicSlug])
   useEffect(() => {
     if (!active || !all?.length) return
     api<{ likes: Record<string, number> }>(`/study-likes?ids=${all.map((s) => s.id).join(',')}`).then((r) => setLikes(r.likes), () => {})
@@ -56,7 +63,7 @@ export default function StudyList({ topic, active }: { topic: string | null; act
         </a>
         <div className="studies-nav-title">주제</div>
         {topics.map(([t, n]) => (
-          <a key={t} href={`/study/topic/${encodeURIComponent(t)}`} className={topic === t ? 'active' : ''}>
+          <a key={t} href={topicPath(slugs, t)} className={topic === t ? 'active' : ''}>
             {t} <span className="muted">{n}</span>
           </a>
         ))}
@@ -94,7 +101,7 @@ export default function StudyList({ topic, active }: { topic: string | null; act
                   <ol className="study-card-chapters">
                     {chapters.map((c) => (
                       <li key={c.id} className={hit(c) ? 'hit' : ''}>
-                        <a href={`/study/${s.id}/${c.id}`}>{c.name}</a>
+                        <a href={chapterHref(s, c.id)}>{c.name}</a>
                       </li>
                     ))}
                   </ol>

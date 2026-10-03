@@ -17,7 +17,7 @@ const DOC_PATHS = new Set(PAGES.filter((p) => p.doc).map((p) => p.path))
 function studyRoute(path: string) {
   if (path === '/study') return { list: true as const, topic: null }
   const t = /^\/study\/topic\/([^/]+)$/.exec(path)
-  if (t) return { list: true as const, topic: decodeURIComponent(t[1]) }
+  if (t) return { list: true as const, topic: t[1] }
   const m = /^\/study\/([a-z0-9-]+)(?:\/([\w-]+))?$/.exec(path)
   if (m) return { list: false as const, id: m[1], chapter: m[2] ?? null }
   return null
@@ -80,7 +80,6 @@ export default function App() {
   useEffect(() => {
     const meta = pageFor(path)
     if (meta) document.title = meta.title
-    else if (page === 'study' && study?.list) document.title = `${study.topic ?? '모든 연구'} — 장기 연구 | 초한 장기`
     if (page === 'doc' || page === 'study') window.scrollTo(0, 0)
   }, [path, page])
 
@@ -130,6 +129,9 @@ export default function App() {
           <span>학습</span>
         </NavLink>
         <div className="sidebar-foot">
+          <NavLink to="/notation" className="foot-link">
+            표기법
+          </NavLink>
           <NavLink to="/licenses" className="foot-link">
             라이선스
           </NavLink>
@@ -172,7 +174,7 @@ export default function App() {
       </main>
       {study?.list && (
         <main className="page">
-          <StudyList topic={study.topic} active />
+          <StudyList topicSlug={study.topic} active />
         </main>
       )}
       {study && !study.list && (

@@ -1,7 +1,7 @@
 // Site and page metadata. Used by the app (document titles) and by scripts/seo.ts at build time,
 // which writes one pre-rendered HTML file per page plus sitemap.xml. New content pages (e.g. openings)
 // only need an entry here.
-import { LICENSES_PAGE, PRIVACY_PAGE } from './docs.ts'
+import { LICENSES_PAGE, NOTATION_PAGE, PRIVACY_PAGE } from './docs.ts'
 
 export const SITE = {
   name: '초한 장기',
@@ -55,7 +55,7 @@ export const PAGES: PageMeta[] = [
 <h1>장기 분석판</h1>
 <p>장기판에 직접 수를 두면 Fairy-Stockfish NNUE 엔진이 그 자리에서 다시 분석해 형세 점수(평가 막대)와 최선의 수순 3개를 보여줘요. 엔진 수순의 수에 마우스를 올리면 그 국면을 미리 볼 수 있고, 누르면 변화도로 남습니다.</p>
 <p>게임 리뷰 탭에서는 기보의 모든 수를 chess.com과 같은 기준(탁월한 수, 훌륭한 수, 최선의 수, 뛰어난 수, 좋은 수, 부정확한 수, 실수, 놓친 수, 블런더)으로 평가하고, 초·한의 정확도와 평가 그래프를 보여줍니다.</p>
-<nav><a href="/">온라인 대국</a> · <a href="/ranking">장기 순위</a></nav>`,
+<nav><a href="/">온라인 대국</a> · <a href="/ranking">장기 순위</a> · <a href="/notation">기보 표기법</a></nav>`,
   },
   {
     path: '/ranking',
@@ -68,6 +68,7 @@ export const PAGES: PageMeta[] = [
 <p>초한 장기의 레이팅 대국 결과로 매겨지는 Glicko-2 순위예요. 닉네임으로 플레이어를 찾아 승·무·패, 승률, 최근 대국을 볼 수 있고, 대국을 누르면 AI 게임 리뷰로 열립니다.</p>
 <nav><a href="/">온라인 대국</a> · <a href="/analysis">장기 분석판</a></nav>`,
   },
+  NOTATION_PAGE,
   LICENSES_PAGE,
   PRIVACY_PAGE,
 ]

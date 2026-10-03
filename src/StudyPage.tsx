@@ -6,7 +6,7 @@ import { classifyOpening } from './openings'
 import { api, savedToken } from './net'
 import { isPass, parsePieces, parseUci, withBoard } from './janggi'
 import { moveSound, playSound } from './sound'
-import { GLYPH_COLOR, SHAPE_COLOR, chapterNodes, loadStudy, moveLabel, topicHref, type Study, type ViewNode } from './studyData'
+import { GLYPH_COLOR, SHAPE_COLOR, chapterHref, chapterNodes, loadStudy, loadTopics, moveLabel, topicHref, topicPath, type Study, type ViewNode } from './studyData'
 import { IconFirst, IconLast, IconNext, IconPrev, useHeldKey } from './ui'
 
 export default function StudyPage({
@@ -26,9 +26,11 @@ export default function StudyPage({
   const flipped = baseFlipped !== useHeldKey('KeyF', active)
   const [like, setLike] = useState<{ n: number; mine: boolean } | null>(null)
 
+  const [slugs, setSlugs] = useState<Record<string, string>>({})
   useEffect(() => {
     setStudy(undefined)
     loadStudy(id).then(setStudy)
+    loadTopics().then(setSlugs)
   }, [id])
   useEffect(() => {
     if (!active) return
@@ -115,7 +117,7 @@ export default function StudyPage({
         <ol>
           {study.chapters.map((c, i) => (
             <li key={c.id} className={c.id === chapter.id ? 'active' : ''}>
-              <a href={`/study/${study.id}/${c.id}`}>
+              <a href={chapterHref(study, c.id)}>
                 <span className="ch-no">{i + 1}</span>
                 {c.name}
               </a>
@@ -140,6 +142,9 @@ export default function StudyPage({
           <span>
             {study.title}: {chapter.name}
           </span>
+          <a className="study-notation" href="/notation" title="Hd3, ef4+ 같은 기보 읽는 법">
+            표기법
+          </a>
           <button className={`study-like ${like?.mine ? 'on' : ''}`} onClick={toggleLike} title="좋아요">
             {like?.mine ? '♥' : '♡'} {like?.n ?? 0}
           </button>
@@ -148,7 +153,7 @@ export default function StudyPage({
           {study.topics.map((t) => (
             <a
               key={t}
-              href={study.chapters.some((c) => c.topics?.includes(t)) ? topicHref(study, t) : `/study/topic/${encodeURIComponent(t)}`}
+              href={study.chapters.some((c) => c.topics?.includes(t)) ? topicHref(study, t) : topicPath(slugs, t)}
               className={chapter.topics?.includes(t) ? 'on' : ''}>
               {t}
             </a>
