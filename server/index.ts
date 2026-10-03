@@ -96,6 +96,27 @@ const getUser = (id: number) => db.prepare('SELECT * FROM users WHERE id = ?').g
 
 const NICK_RE = /^[가-힣A-Za-z0-9_]{2,12}$/
 
+/**
+ * Battle.net-style numeric tag (#1234). Keyed with the server secret, so it reveals nothing about the
+ * password. Grows to 5+ digits only if every 4-digit candidate is taken for this nickname.
+ */
+function numericTag(nick: string, keyHash: string, taken = (t: string) => !!db.prepare("SELECT 1 FROM users WHERE nick = ? AND tag = ?").get(nick, t)) {
+  for (let len = 4; ; len++) {
+    for (let i = 0; i < 32; i++) {
+      const h = crypto.createHmac("sha256", SECRET).update(`${keyHash}:${i}`).digest()
+      const tag = String(h.readBigUInt64BE(0) % 10n ** BigInt(len)).padStart(len, "0")
+      if (!taken(tag)) return tag
+    }
+  }
+}
+
+// one-time migration: older accounts had hex tags (e.g. #5a2a)
+for (const u of db.prepare("SELECT id, nick, key_hash FROM users WHERE tag GLOB '*[^0-9]*'").all() as { id: number; nick: string; key_hash: string }[]) {
+  const tag = numericTag(u.nick, u.key_hash)
+  db.prepare("UPDATE users SET tag = ? WHERE id = ?").run(tag, u.id)
+  console.log(`tag migrated: ${u.nick} -> #${tag}`)
+}
+
 /** Battle-tag style accounts: nickname + password pick the account; first use creates it. */
 function login(nick: string, password: string): { user: User; created: boolean } {
   if (!NICK_RE.test(nick)) throw new Error('닉네임은 한글/영문/숫자/_ 2~12자로 해 주세요')
@@ -105,13 +126,7 @@ function login(nick: string, password: string): { user: User; created: boolean }
   const keyHash = crypto.createHash('sha256').update(key).digest('hex')
   const found = db.prepare('SELECT * FROM users WHERE key_hash = ?').get(keyHash) as User | undefined
   if (found) return { user: found, created: false }
-  // The visible tag is keyed with a server secret, so it reveals nothing about the password.
-  const full = crypto.createHmac('sha256', SECRET).update(key).digest('hex')
-  let tag = ''
-  for (let len = 4; len <= full.length; len++) {
-    tag = full.slice(0, len)
-    if (!db.prepare('SELECT 1 FROM users WHERE nick = ? AND tag = ?').get(nick, tag)) break
-  }
+  const tag = numericTag(nick, keyHash)
   const r = db
     .prepare('INSERT INTO users (nick, tag, key_hash, rating, rd, vol, created) VALUES (?, ?, ?, ?, ?, ?, ?)')
     .run(nick, tag, keyHash, INITIAL.rating, INITIAL.rd, INITIAL.vol, Date.now())
