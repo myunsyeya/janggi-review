@@ -31,3 +31,6 @@ public/engine/
 
 # compiled from content/studies by scripts/studies.ts
 public/studies/
+
+# test switch for scripts/research-run.sh
+research/.test-run

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.myunsyeya.janggi-research</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/zsh</string>
+		<string>/Users/myunsyeya/janggi-review/scripts/research-run.sh</string>
+	</array>
+	<!-- once a day, early morning -->
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>5</integer>
+		<key>Minute</key>
+		<integer>17</integer>
+	</dict>
+	<key>StandardOutPath</key>
+	<string>/Users/myunsyeya/Library/Logs/janggi-research/launchd.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/myunsyeya/Library/Logs/janggi-research/launchd.log</string>
+</dict>
+</plist>

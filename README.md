@@ -37,6 +37,15 @@ Create `content/studies/<id>/study.json` (`title`, `topics`, `description`, `aut
 files `01-name.pgn`, `02-…`, each starting with `[Chapter "…"] [Cho "상마상마"] [Han "마상마상"]`, then movetext such as
 `1. ab4! { why [%cal Ga1a3] } (1. ih4 { … }) 1... Hd8 …`. `npm run build` checks every move and publishes the pages.
 
+### Daily research
+
+`scripts/research-run.sh` runs once a day (launchd `com.myunsyeya.janggi-research`, 05:17). Claude Code reads
+`research/PROMPT.md` and `research/notebook.md`, does one research step (survey a topic, write one chapter, or revise),
+with write access limited to `content/studies/` and `research/` by `~/.config/janggi-research/settings.json`. The script
+then builds (every move is checked), commits and pushes; a failed run is kept in `git stash` instead. Without that
+settings file the run is skipped. Logs: `~/Library/Logs/janggi-research/`. Engine lines for research:
+`npm run explore -- <cho setup> <han setup> "<uci moves>" [depth] [multipv]`.
+
 ## Rules and notation
 
 - Rules: Fairy-Stockfish's `janggimodern` — no bikjang, material counting, repetition rules compatible with Kakao Janggi.
