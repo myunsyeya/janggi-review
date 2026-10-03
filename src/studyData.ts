@@ -163,3 +163,33 @@ export function timeAgo(date: string) {
   if (days < 365) return `${Math.floor(days / 30)}달 전`
   return `${Math.floor(days / 365)}년 전`
 }
+
+/** Position key for theory lookups: board and side to move (transpositions count as the same position) */
+export const positionKey = (fen: string) => fen.split(' ').slice(0, 2).join(' ')
+
+let theoryPromise: Promise<Set<string>> | null = null
+/**
+ * Every position reached in a study (main lines and variations) is theory, like an opening book. Not counted:
+ * moves marked ?, ?! or ?? and everything after them, and moves only mentioned in comments. Needs the rules loaded.
+ */
+export function loadTheory() {
+  return (theoryPromise ??= loadStudyIndex().then(async (index) => {
+    const keys = new Set<string>()
+    for (const meta of index) {
+      const study = await loadStudy(meta.id)
+      for (const ch of study?.chapters ?? []) {
+        const nodes = chapterNodes(ch)
+        const visit = (id: number) => {
+          for (const c of nodes[id].children) {
+            const n = nodes[c]
+            if (n.hidden || n.glyphs?.some((g) => g.includes('?'))) continue
+            keys.add(positionKey(n.fen))
+            visit(c)
+          }
+        }
+        visit(0)
+      }
+    }
+    return keys
+  }))
+}

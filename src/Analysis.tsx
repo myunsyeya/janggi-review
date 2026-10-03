@@ -6,6 +6,7 @@ import { evaluate, getEngine, type Analysis as EngineAnalysis, type Engine } fro
 import { SetupPicker } from "./SetupIcon"
 import { moveSound, playSound } from "./sound"
 import { classifyOpening } from "./openings"
+import { loadTheory, positionKey } from "./studyData"
 import { OpeningBar } from "./OpeningBar"
 import Explorer from "./Explorer"
 import {
@@ -82,6 +83,11 @@ export default function Analysis({
   }, [])
 
   const start = tree.nodes[ROOT].fen
+  // positions from the study notes count as theory in the review
+  const [theory, setTheory] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    if (rulesReady) loadTheory().then(setTheory, () => {})
+  }, [rulesReady])
   const node = tree.nodes[cur]
   const fen = node.fen
   const lastMove = node.uci || undefined
@@ -276,8 +282,10 @@ export default function Analysis({
       for (const c of n.children) {
         const line = [...ucis, tree.nodes[c].uci]
         let r = reviewMove(n.fen, tree.nodes[c].uci, tree.nodes[c].fen, prev, evals)
-        // a move that builds the recognized formation is theory (이론에 있는 수), unless the engine calls it a mistake
-        if (r && r.loss <= 0.1 && line.length <= 40 && classifyOpening(start, line).book.has(line.length - 1))
+        // theory (이론에 있는 수): a move that builds the recognized formation, or a position from the study notes,
+        // unless the engine calls it a mistake
+        const inTheory = () => theory.has(positionKey(tree.nodes[c].fen)) || classifyOpening(start, line).book.has(line.length - 1)
+        if (r && r.loss <= 0.1 && line.length <= 40 && inTheory())
           r = { ...r, cls: 'book', isBest: true }
         if (r) m.set(c, r)
         walk(c, line)
@@ -285,7 +293,7 @@ export default function Analysis({
     }
     walk(ROOT, [])
     return m
-  }, [rulesReady, tree, evals, start])
+  }, [rulesReady, tree, evals, start, theory])
   const reviews = useMemo(() => main.map((id) => treeReviews.get(id) ?? null), [main, treeReviews])
   const reviewed = plies.length > 0 && reviews.every(Boolean)
   const classes = useMemo(() => new Map([...treeReviews].map(([id, r]) => [id, r.cls])), [treeReviews])
