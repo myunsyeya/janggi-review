@@ -134,3 +134,6 @@ const notFound = template
   )
 fs.writeFileSync(path.join(DIST, '404.html'), notFound)
 console.log('seo: 404.html')
+
+// guard: search engines (Naver in particular) cut descriptions longer than 80 characters
+for (const p of PAGES) if ([...p.description].length > 80) throw new Error(`description over 80 chars: ${p.path}`)

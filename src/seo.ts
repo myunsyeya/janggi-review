@@ -9,8 +9,8 @@ export const SITE = {
   language: 'ko-KR',
   image: '/og.png', // 1200×630
   themeColor: '#302e2b',
-  description:
-    '무료 온라인 장기. 레이팅 대국과 자동 매칭, Fairy-Stockfish NNUE 엔진의 실시간 분석, 수마다 탁월한 수·실수·블런더를 매기는 게임 리뷰를 브라우저에서 바로 쓸 수 있어요.',
+  // descriptions stay under 80 characters (Naver Search Advisor recommendation)
+  description: '무료 온라인 장기. 레이팅 대국과 AI 엔진 분석, 수마다 탁월한 수·실수를 짚어 주는 게임 리뷰까지 브라우저에서 바로.',
 }
 
 export interface PageMeta {
@@ -45,8 +45,7 @@ export const PAGES: PageMeta[] = [
   {
     path: '/analysis',
     title: '장기 분석판 — AI 엔진으로 형세와 최선의 수 보기 | 초한 장기',
-    description:
-      '장기판에 수를 두면 Fairy-Stockfish NNUE 엔진이 바로 형세 점수와 최선의 수순 3개를 보여줍니다. 변화도, 화살표 그리기, 기보 게임 리뷰(정확도·평가 그래프)까지 무료로.',
+    description: '장기판에 수를 두면 AI 엔진이 형세 점수와 최선의 수순을 바로 보여주는 무료 장기 분석판. 게임 리뷰와 정확도까지.',
     changefreq: 'monthly',
     priority: 0.8,
     body: `
@@ -58,7 +57,7 @@ export const PAGES: PageMeta[] = [
   {
     path: '/ranking',
     title: '장기 레이팅 순위·전적 조회 | 초한 장기',
-    description: '초한 장기의 Glicko-2 레이팅 순위와 플레이어별 승·무·패, 승률, 최근 대국을 조회하고 대국을 AI 게임 리뷰로 다시 볼 수 있어요.',
+    description: '초한 장기 레이팅 순위와 플레이어별 승·무·패, 승률, 최근 대국 전적을 조회해 보세요.',
     changefreq: 'daily',
     priority: 0.6,
     body: `
