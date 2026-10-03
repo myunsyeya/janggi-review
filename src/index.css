@@ -1724,3 +1724,57 @@ button {
   justify-content: space-between;
   gap: 12px;
 }
+
+/* --- roomier layout (chess.com-like proportions) -------------------------------------- */
+
+.app {
+  /* panel takes ~30% of the width; the board fills the height but never squeezes the panel */
+  --panel-w: clamp(400px, 30vw, 560px);
+  --tag-h: 44px;
+  --col-gap: 6px;
+  --board-h: min(
+    calc(100vh - 2 * var(--tag-h) - 2 * var(--col-gap) - 40px),
+    calc((100vw - 76px - var(--panel-w) - 36px - 28px - 40px) * 10.9 / 9.9)
+  );
+  gap: 28px;
+  padding: 20px;
+}
+.board-col {
+  gap: var(--col-gap);
+}
+.player {
+  height: var(--tag-h);
+}
+.evalbar {
+  margin-top: calc(var(--tag-h) + var(--col-gap));
+}
+.panel {
+  width: var(--panel-w);
+  height: calc(var(--board-h) + 2 * var(--tag-h) + 2 * var(--col-gap));
+}
+.line {
+  font-size: 14px;
+  min-height: 30px;
+}
+.movelist {
+  font-size: 15px;
+}
+.move-row {
+  padding: 3px 10px;
+}
+.panel-head.tabs .tab {
+  font-size: 16px;
+  padding: 16px 8px 14px;
+}
+
+@media (max-width: 900px) {
+  .app {
+    --panel-w: 100%;
+    --board-h: min(calc((100vw - 76px) * 10.9 / 9.9), 80vh);
+    padding: 12px;
+    gap: 16px;
+  }
+  .panel {
+    height: 520px;
+  }
+}

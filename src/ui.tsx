@@ -149,9 +149,15 @@ export const IconReview = () => (
     <path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 16.9l-6.1 3.5 1.5-6.8L2.2 9l6.9-.7z" />
   </svg>
 )
+// two crossed swords
 export const IconPlay = () => (
-  <svg {...svgProps} width={18} height={18}>
-    <path d="M7 4h10l-1.5 3H17v2h-2l1 9H8l1-9H7V7h1.5zM6 19h12v2H6z" />
+  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3.5 3.5 14 14" strokeWidth={2.4} />
+    <path d="M11.5 16.5l5-5M14 14l3.6 3.6" strokeWidth={2} />
+    <circle cx={19.2} cy={19.2} r={1.4} fill="currentColor" strokeWidth={0} />
+    <path d="M20.5 3.5 10 14" strokeWidth={2.4} />
+    <path d="M12.5 16.5l-5-5M10 14l-3.6 3.6" strokeWidth={2} />
+    <circle cx={4.8} cy={19.2} r={1.4} fill="currentColor" strokeWidth={0} />
   </svg>
 )
 
