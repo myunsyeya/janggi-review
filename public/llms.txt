@@ -12,3 +12,5 @@
 - [온라인 대국](https://myunsyeya.com/): 로그인(닉네임+비밀번호), 매칭, 대국, 내 대국 기록
 - [장기 분석판](https://myunsyeya.com/analysis): 엔진 분석, 변화도, 게임 리뷰
 - [장기 순위](https://myunsyeya.com/ranking): 레이팅 순위와 플레이어별 전적
+- [장기 포진 배우기](https://myunsyeya.com/learn): 귀마·원앙마·양귀마·면상·양귀상, 맞상/엇상, 정형/변형, 귀마 대 귀마 후수 포진 9가지(중앙병좌, 좌진병상·좌·우, 최국수)
+- [최국수 포진과 김경만 포진](https://myunsyeya.com/openings/choigooksu): 최종윤 국수가 만든 후수 귀마 포진, 2선/5선
