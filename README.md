@@ -43,7 +43,7 @@ files `01-name.pgn`, `02-…`, each starting with `[Chapter "…"] [Cho "상마�
 `research/PROMPT.md` and `research/notebook.md`, does one research step (survey a topic, write one chapter, or revise),
 with write access limited to `content/studies/` and `research/` by `~/.config/janggi-research/settings.json`. The script
 then builds (every move is checked), commits and pushes; a failed run is kept in `git stash` instead. Without that
-settings file the run is skipped. Logs: `~/Library/Logs/janggi-research/`. Engine lines for research:
+settings file the run is skipped. Logs: `~/Library/Logs/janggi-research/`. Finished site games: `node scripts/games.ts [opening filter] [max]`. Engine lines for research:
 `npm run explore -- <cho setup> <han setup> "<uci moves>" [depth] [multipv]`.
 
 ## Rules and notation
