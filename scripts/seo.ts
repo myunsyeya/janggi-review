@@ -11,7 +11,10 @@ if (!template.includes('<!--seo-head-->') || !template.includes('<!--seo-body-->
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 const abs = (p: string) => SITE.url + (p === '/' ? '/' : p)
 
-function jsonLd(page: PageMeta) {
+/** Extra structured data for generated pages: breadcrumb trail, page type and nodes such as an Article. */
+type Extra = { crumbs?: { name: string; path: string }[]; pageType?: string; about?: string; nodes?: object[] }
+
+function jsonLd(page: PageMeta, extra: Extra = {}) {
   const website = {
     '@type': 'WebSite',
     '@id': `${SITE.url}/#website`,
@@ -42,18 +45,23 @@ function jsonLd(page: PageMeta) {
     ],
   }
   const webpage = {
-    '@type': 'WebPage',
+    '@type': extra.pageType ?? 'WebPage',
     '@id': `${abs(page.path)}#webpage`,
     url: abs(page.path),
     name: page.title,
     description: page.description,
     inLanguage: SITE.language,
     isPartOf: { '@id': `${SITE.url}/#website` },
-    about: { '@id': `${SITE.url}/#app` },
+    about: { '@id': extra.about ?? `${SITE.url}/#app` },
     primaryImageOfPage: SITE.url + SITE.image,
   }
-  const graph: object[] = [website, app, webpage]
-  if (page.path !== '/') {
+  const graph: object[] = [website, app, webpage, ...(extra.nodes ?? [])]
+  if (extra.crumbs) {
+    graph.push({
+      '@type': 'BreadcrumbList',
+      itemListElement: extra.crumbs.map((c, i) => ({ '@type': 'ListItem', position: i + 1, name: c.name, item: abs(c.path) })),
+    })
+  } else if (page.path !== '/') {
     graph.push({
       '@type': 'BreadcrumbList',
       itemListElement: [
@@ -66,7 +74,7 @@ function jsonLd(page: PageMeta) {
   return JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }).replace(/</g, '\\u003c')
 }
 
-function head(page: PageMeta) {
+function head(page: PageMeta, extra?: Extra) {
   const url = abs(page.path)
   const image = SITE.url + SITE.image
   return [
@@ -87,7 +95,7 @@ function head(page: PageMeta) {
     `<meta name="twitter:title" content="${esc(page.title)}" />`,
     `<meta name="twitter:description" content="${esc(page.description)}" />`,
     `<meta name="twitter:image" content="${image}" />`,
-    `<script type="application/ld+json">${jsonLd(page)}</script>`,
+    `<script type="application/ld+json">${jsonLd(page, extra)}</script>`,
   ].join('\n    ')
 }
 
@@ -140,44 +148,55 @@ for (const p of PAGES) if ([...p.description].length > 80) throw new Error(`desc
 
 // --- studies: list, topic and chapter pages (research notes compiled by scripts/studies.ts) ------------------
 import type { StudyChapter, StudyNode } from '../src/studyFormat.ts'
-type StudyFile = { id: string; title: string; topics: string[]; description: string; updated: string; chapters: StudyChapter[] }
+type StudyFile = { id: string; title: string; topics: string[]; description: string; author?: string; created: string; updated: string; chapters: StudyChapter[] }
 const studyDir = path.join(DIST, 'studies')
 const studyIndex: { id: string; title: string; topics: string[]; description: string; updated: string; chapters: { id: string; name: string }[] }[] =
   fs.existsSync(path.join(studyDir, 'index.json')) ? JSON.parse(fs.readFileSync(path.join(studyDir, 'index.json'), 'utf8')) : []
 const studyUrls: { loc: string; lastmod: string; priority: number }[] = []
+const llmsLines: string[] = []
 const topicSlugs: Record<string, string> = fs.existsSync(path.join(studyDir, 'topics.json'))
   ? JSON.parse(fs.readFileSync(path.join(studyDir, 'topics.json'), 'utf8'))
   : {}
 const NOTATION_NOTE = `<p>기보는 이 사이트의 표기법으로 적었어요(H 마, E 상, C 포, R 차, K 궁, A 사, 졸·병은 글자 없음, 줄 a~i·선 1~10). + 평가는 초에게 유리하다는 뜻이에요. <a href="/notation">기보 표기법 보기</a></p>`
 
-function writePage(file: string, page: PageMeta) {
+function writePage(file: string, page: PageMeta, extra?: Extra) {
   const html = template
     .replace(/<title>[^<]*<\/title>/, `<title>${esc(page.title)}</title>`)
-    .replace('<!--seo-head-->', head(page))
+    .replace('<!--seo-head-->', head(page, extra))
     .replace('<!--seo-body-->', `<main class="seo-fallback">${page.body.trim()}</main>`)
   fs.mkdirSync(path.dirname(path.join(DIST, file)), { recursive: true })
   fs.writeFileSync(path.join(DIST, file), html)
 }
 const short = (s: string) => ([...s].length > 80 ? [...s].slice(0, 79).join('') + '…' : s)
 
-/** Moves and comments as readable HTML: main line with comments as paragraphs, variations nested. */
+/**
+ * Moves and comments as readable HTML: the main line in paragraphs (a new paragraph wherever there is a comment),
+ * the alternatives to a move as a list right after it, deeper variations inline in parentheses.
+ */
 function chapterHtml(root: StudyNode) {
-  const label = (ply: number, san: string) => `${Math.ceil(ply / 2)}${ply % 2 ? '.' : '...'} ${san}`
-  const line = (start: StudyNode, ply: number): string => {
+  const label = (ply: number, n: StudyNode) => `<b>${esc(`${Math.ceil(ply / 2)}${ply % 2 ? '.' : '...'} ${n.san ?? ''}${(n.glyphs ?? []).join('')}`)}</b>`
+  const inline = (start: StudyNode, ply: number): string => {
     let out = ''
-    let n: StudyNode | undefined = start
-    let p = ply
-    while (n) {
-      out += ` <b>${esc(label(p, n.san ?? ''))}${esc((n.glyphs ?? []).join(''))}</b>`
+    for (let n: StudyNode | undefined = start, p = ply; n; n = n.ch[0], p++) {
+      out += ` ${label(p, n)}`
       if (n.comment) out += ` ${esc(n.comment)}`
-      const alts: StudyNode[] = n.ch.slice(1)
-      if (alts.length) out += alts.map((a) => ` (${line(a, p + 1)})`).join('')
-      n = n.ch[0]
-      p++
+      for (const alt of n.ch.slice(1)) out += ` (${inline(alt, p + 1)})`
     }
-    return out
+    return out.trim()
   }
-  return (root.comment ? `<p>${esc(root.comment)}</p>` : '') + root.ch.map((c, i) => `<p>${i ? '변화: ' : ''}${line(c, 1)}</p>`).join('')
+  let html = root.comment ? `<p>${esc(root.comment)}</p>` : ''
+  let para: string[] = []
+  let parent = root
+  for (let n: StudyNode | undefined = root.ch[0], p = 1; n; parent = n, n = n.ch[0], p++) {
+    para.push(label(p, n))
+    const alts = parent.ch.slice(1)
+    if (n.comment || alts.length || !n.ch.length) {
+      html += `<p>${para.join(' ')}${n.comment ? ' ' + esc(n.comment) : ''}</p>`
+      para = []
+      if (alts.length) html += `<ul>${alts.map((a) => `<li>변화: ${inline(a, p)}</li>`).join('')}</ul>`
+    }
+  }
+  return html
 }
 
 if (studyIndex.length) {
@@ -192,6 +211,9 @@ if (studyIndex.length) {
     changefreq: 'weekly',
     priority: 0.8,
     body: listBody('장기 연구', studyIndex),
+  }, {
+    pageType: 'CollectionPage',
+    crumbs: [{ name: SITE.name, path: '/' }, { name: '장기 연구', path: '/study' }],
   })
   studyUrls.push({ loc: '/study', lastmod: studyIndex.map((s) => s.updated).sort().at(-1)!, priority: 0.8 })
   for (const topic of new Set(studyIndex.flatMap((s) => s.topics))) {
@@ -206,25 +228,69 @@ if (studyIndex.length) {
       changefreq: 'weekly',
       priority: 0.5,
       body: listBody(topic, items),
+    }, {
+      pageType: 'CollectionPage',
+      crumbs: [{ name: SITE.name, path: '/' }, { name: '장기 연구', path: '/study' }, { name: topic, path: p }],
     })
     studyUrls.push({ loc: p, lastmod: items.map((s) => s.updated).sort().at(-1)!, priority: 0.5 })
   }
   for (const meta of studyIndex) {
     const study = JSON.parse(fs.readFileSync(path.join(studyDir, `${meta.id}.json`), 'utf8')) as StudyFile
+    const studyPath = `/study/${study.id}`
+    const chPath = (i: number) => (i === 0 ? studyPath : `${studyPath}/${study.chapters[i].id}`)
     study.chapters.forEach((ch, i) => {
-      const p = i === 0 ? `/study/${study.id}` : `/study/${study.id}/${ch.id}`
-      const nav = `<nav>${study.chapters.map((c, j) => `<a href="/study/${study.id}${j ? '/' + c.id : ''}">${j + 1}. ${esc(c.name)}</a>`).join(' · ')}</nav>`
-      writePage(i === 0 ? `study/${study.id}.html` : `study/${study.id}/${ch.id}.html`, {
+      const p = chPath(i)
+      const nav = `<nav>${study.chapters.map((c, j) => `<a href="${chPath(j)}">${j + 1}. ${esc(c.name)}</a>`).join(' · ')}</nav>`
+      // the chapter's opening comment is its summary; the first chapter is also the study's page
+      const summary = i === 0 ? study.description : (ch.root.comment ?? study.description).split('\n')[0]
+      const topics = [...new Set([...study.topics.filter((t) => !study.chapters.some((c) => c.topics?.includes(t))), ...(ch.topics ?? [])])]
+      const page: PageMeta = {
         path: p,
         title: `${study.title}: ${ch.name} | 초한 장기`,
-        description: short(i === 0 ? study.description : `${study.title} — ${ch.name}. ${study.description}`),
+        description: short(i === 0 ? summary : `${ch.name}. ${summary}`),
         changefreq: 'monthly',
         priority: 0.7,
-        body: `<h1>${esc(study.title)}: ${esc(ch.name)}</h1>${NOTATION_NOTE}${chapterHtml(ch.root)}${nav}`,
+        body: `<h1>${esc(study.title)}: ${esc(ch.name)}</h1>${NOTATION_NOTE}<h2>수순과 해설</h2>${chapterHtml(ch.root)}${nav}`,
+      }
+      writePage(i === 0 ? `study/${study.id}.html` : `study/${study.id}/${ch.id}.html`, page, {
+        about: `${abs(p)}#article`,
+        crumbs: [
+          { name: SITE.name, path: '/' },
+          { name: '장기 연구', path: '/study' },
+          { name: study.title, path: studyPath },
+          ...(i ? [{ name: ch.name, path: p }] : []),
+        ],
+        nodes: [
+          { '@type': 'CreativeWorkSeries', '@id': `${abs(studyPath)}#study`, name: study.title, url: abs(studyPath), description: study.description, inLanguage: SITE.language },
+          {
+            '@type': 'Article',
+            '@id': `${abs(p)}#article`,
+            headline: `${study.title}: ${ch.name}`.slice(0, 110),
+            description: page.description,
+            inLanguage: SITE.language,
+            url: abs(p),
+            mainEntityOfPage: { '@id': `${abs(p)}#webpage` },
+            isPartOf: { '@id': `${abs(studyPath)}#study` },
+            position: i + 1,
+            author: { '@type': 'Organization', name: study.author ?? SITE.name, url: `${SITE.url}/` },
+            publisher: { '@type': 'Organization', name: SITE.name, url: `${SITE.url}/` },
+            datePublished: study.created,
+            dateModified: study.updated,
+            image: SITE.url + SITE.image,
+            keywords: ['장기', 'Janggi', ...topics].join(', '),
+            about: [{ '@type': 'Thing', name: '장기 포진 (Janggi opening)' }, ...topics.map((t) => ({ '@type': 'Thing', name: t }))],
+          },
+        ],
       })
       studyUrls.push({ loc: p, lastmod: study.updated, priority: 0.7 })
     })
+    llmsLines.push(`- [${study.title}](${abs(studyPath)}): ${study.description}`)
+    study.chapters.forEach((ch, i) =>
+      llmsLines.push(`  - [${i + 1}. ${ch.name}](${abs(chPath(i))})${ch.root.comment ? ': ' + ch.root.comment.split('\n')[0] : ''}`),
+    )
   }
+  // the study list goes into llms.txt too, so AI crawlers see every chapter
+  fs.appendFileSync(path.join(DIST, 'llms.txt'), `\n## 장기 연구\n\n${llmsLines.join('\n')}\n`)
   // append the study URLs to the sitemap
   const extra = studyUrls
     .map((u) => `  <url>\n    <loc>${SITE.url}${u.loc}</loc>\n    <lastmod>${new Date(u.lastmod).toISOString()}</lastmod>\n    <priority>${u.priority.toFixed(1)}</priority>\n  </url>`)

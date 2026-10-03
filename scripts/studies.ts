@@ -42,6 +42,7 @@ for (const id of fs.existsSync(SRC) ? fs.readdirSync(SRC).sort() : []) {
       return parseChapter(fs.readFileSync(path.join(dir, f), 'utf8'), m[1])
     })
   if (!chapters.length) throw new Error(`${id}: no chapters`)
+  for (const c of chapters) if (!c.root.comment) throw new Error(`${id}/${c.id}: start the chapter with a { comment } that sums it up (used as its search description)`)
   meta.topics = [...new Set([...meta.topics, ...chapters.flatMap((c) => c.topics ?? [])])]
   for (const t of meta.topics) if (!TOPICS[t]) throw new Error(`${id}: topic "${t}" has no English path in content/studies/topics.json`)
   fs.writeFileSync(path.join(OUT, `${id}.json`), JSON.stringify({ id, ...meta, chapters }))
