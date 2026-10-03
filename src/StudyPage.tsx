@@ -4,7 +4,9 @@ import Board, { type Arrow } from './Board'
 import { OpeningBar } from './OpeningBar'
 import { classifyOpening } from './openings'
 import { api, savedToken } from './net'
-import { GLYPH_COLOR, SHAPE_COLOR, chapterNodes, loadStudy, moveLabel, type Study, type ViewNode } from './studyData'
+import { isPass, parsePieces, parseUci, withBoard } from './janggi'
+import { moveSound, playSound } from './sound'
+import { GLYPH_COLOR, SHAPE_COLOR, chapterNodes, loadStudy, moveLabel, topicHref, type Study, type ViewNode } from './studyData'
 import { IconFirst, IconLast, IconNext, IconPrev, useHeldKey } from './ui'
 
 export default function StudyPage({
@@ -38,12 +40,26 @@ export default function StudyPage({
 
   const chapter = study ? (study.chapters.find((c) => c.id === chapterId) ?? study.chapters[0]) : null
   const nodes = useMemo(() => (chapter && rulesReady ? chapterNodes(chapter) : []), [chapter, rulesReady])
-  useEffect(() => setCur(0), [chapter])
+  useEffect(() => {
+    setCur(0)
+    lastSoundAt.current = 0
+  }, [chapter])
   useEffect(() => {
     if (study && chapter) document.title = `${study.title}: ${chapter.name} | 초한 장기`
   }, [study, chapter])
 
   const node = nodes[cur]
+
+  // stepping one move forward plays that move's sound, as on the analysis board
+  const lastSoundAt = useRef(0)
+  useEffect(() => {
+    const from = lastSoundAt.current
+    lastSoundAt.current = cur
+    const n = nodes[cur]
+    if (!active || !n || n.parent !== from || n.parent === null) return
+    const capture = !isPass(n.uci) && parsePieces(nodes[from].fen).has(parseUci(n.uci).to)
+    playSound(moveSound({ capture, check: withBoard(n.fen, (b) => b.isCheck()), over: false }))
+  }, [cur]) // eslint-disable-line react-hooks/exhaustive-deps
   const go = (to: number | undefined) => to !== undefined && nodes[to] && setCur(to)
   const lineEnd = (from: number) => {
     let n = nodes[from]
@@ -125,7 +141,10 @@ export default function StudyPage({
         </div>
         <div className="study-topics">
           {study.topics.map((t) => (
-            <a key={t} href={`/study/topic/${encodeURIComponent(t)}`}>
+            <a
+              key={t}
+              href={study.chapters.some((c) => c.topics?.includes(t)) ? topicHref(study, t) : `/study/topic/${encodeURIComponent(t)}`}
+              className={chapter.topics?.includes(t) ? 'on' : ''}>
               {t}
             </a>
           ))}

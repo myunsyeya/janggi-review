@@ -2074,6 +2074,7 @@ button {
   border-top: 1px solid #ffffff12;
 }
 .study-card {
+  position: relative;
   display: grid;
   grid-template-columns: 44px minmax(0, 1fr) auto;
   gap: 14px;
@@ -2099,6 +2100,8 @@ button {
   font-size: 14px;
 }
 .study-card-title {
+  display: block;
+  text-decoration: none;
   color: #6fa8dc;
   font-size: 20px;
   line-height: 1.25;
@@ -2124,6 +2127,30 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.study-card-title::after {
+  /* the whole card opens the study; chapter links sit above this */
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+.study-card-chapters a {
+  position: relative;
+  z-index: 1;
+  color: inherit;
+  text-decoration: none;
+}
+.study-card-chapters a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+.study-card-chapters li.hit {
+  color: #fff;
+  font-weight: 600;
+}
+.study-card-chapters li.hit::before {
+  background: #6fa8dc;
+  border-color: #6fa8dc;
 }
 .study-card-chapters li::before {
   content: '';
@@ -2233,6 +2260,10 @@ button {
   color: #6fa8dc;
   font-size: 13px;
   text-decoration: none;
+}
+.study-topics a.on {
+  background: #3893e8;
+  color: #fff;
 }
 .study-side {
   background: var(--panel);

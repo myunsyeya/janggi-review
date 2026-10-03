@@ -11,7 +11,7 @@ export interface StudyMeta {
   author?: string
   created: string
   updated: string
-  chapters: { id: string; name: string }[]
+  chapters: { id: string; name: string; topics?: string[] }[]
 }
 export interface Study extends Omit<StudyMeta, 'chapters'> {
   chapters: StudyChapter[]
@@ -82,6 +82,12 @@ export const SHAPE_COLOR: Record<Shape['color'], string> = {
   R: '#882020',
   B: '#003088',
   Y: '#e68f00',
+}
+
+/** Where a topic leads within a study: the first chapter tagged with it, or the study itself */
+export function topicHref(s: { id: string; chapters: { id: string; topics?: string[] }[] }, topic: string | null) {
+  const ch = topic ? s.chapters.find((c) => c.topics?.includes(topic)) : undefined
+  return ch ? `/study/${s.id}/${ch.id}` : `/study/${s.id}`
 }
 
 /** "3. Hc3" / "3... Hd8" */

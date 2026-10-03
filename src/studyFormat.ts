@@ -3,6 +3,7 @@
 //   [Chapter "귀마 대 귀마: 첫 수"]
 //   [Cho "상마상마"]
 //   [Han "마상마상"]
+//   [Topics "최국수포진, 김경만포진"]   (optional: topics that lead straight to this chapter)
 //   { comment on the starting position }
 //   1. ab4 { comment [%cal Ga4b4] [%csl Gb4] } (1. Hc3 { another try }) 1... Hd8 2. Ce3!? …
 //
@@ -30,6 +31,7 @@ export interface StudyChapter {
   name: string
   cho: Setup
   han: Setup
+  topics?: string[]
   root: StudyNode
 }
 
@@ -116,7 +118,8 @@ export function parseChapter(source: string, id: string): StudyChapter {
     }
   }
   if (stack.length) throw new Error(`${id}: unclosed "("`)
-  return { id, name: tag('Chapter') ?? id, cho, han, root }
+  const topics = tag('Topics')?.split(',').map((t) => t.trim()).filter(Boolean)
+  return { id, name: tag('Chapter') ?? id, cho, han, ...(topics?.length ? { topics } : {}), root }
 }
 
 /** Main line plus all variations, in order, for plain-text rendering (SEO) */

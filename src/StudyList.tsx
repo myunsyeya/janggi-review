@@ -1,7 +1,7 @@
 // Study list, laid out like lichess.org/study/topic/…: sub-navigation on the left, a card grid on the right.
 import { useEffect, useMemo, useState } from 'react'
 import { api } from './net'
-import { loadStudyIndex, timeAgo, type StudyMeta } from './studyData'
+import { loadStudyIndex, timeAgo, topicHref, type StudyMeta } from './studyData'
 
 const SORTS = [
   ['hot', '유행하는 순'],
@@ -75,25 +75,34 @@ export default function StudyList({ topic, active }: { topic: string | null; act
         </header>
         {all && !list.length && <div className="muted pad">아직 연구가 없어요.</div>}
         <div className="study-grid">
-          {list.map((s) => (
-            <a className="study-card" key={s.id} href={`/study/${s.id}`}>
-              <span className="study-icon" aria-hidden>
-                楚漢
-              </span>
-              <div className="study-card-main">
-                <div className="study-card-title">{s.title}</div>
-                <div className="study-card-meta">
-                  ♡ {likes[s.id] ?? 0} · {s.author ?? '초한 장기'} · {timeAgo(s.updated)}
+          {list.map((s) => {
+            // under a topic, the chapters tagged with it come first and are highlighted
+            const hit = (c: StudyMeta['chapters'][number]) => !!topic && !!c.topics?.includes(topic)
+            const chapters = [...s.chapters.filter(hit), ...s.chapters.filter((c) => !hit(c))].slice(0, 4)
+            return (
+              <div className="study-card" key={s.id}>
+                <span className="study-icon" aria-hidden>
+                  楚漢
+                </span>
+                <div className="study-card-main">
+                  <a className="study-card-title" href={topicHref(s, topic)}>
+                    {s.title}
+                  </a>
+                  <div className="study-card-meta">
+                    ♡ {likes[s.id] ?? 0} · {s.author ?? '초한 장기'} · {timeAgo(s.updated)}
+                  </div>
+                  <ol className="study-card-chapters">
+                    {chapters.map((c) => (
+                      <li key={c.id} className={hit(c) ? 'hit' : ''}>
+                        <a href={`/study/${s.id}/${c.id}`}>{c.name}</a>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
-                <ol className="study-card-chapters">
-                  {s.chapters.slice(0, 4).map((c) => (
-                    <li key={c.id}>{c.name}</li>
-                  ))}
-                </ol>
+                <div className="study-card-side muted small">{s.chapters.length} 챕터</div>
               </div>
-              <div className="study-card-side muted small">{s.chapters.length} 챕터</div>
-            </a>
-          ))}
+            )
+          })}
         </div>
       </section>
     </div>

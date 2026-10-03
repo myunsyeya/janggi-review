@@ -32,8 +32,9 @@ for (const id of fs.existsSync(SRC) ? fs.readdirSync(SRC).sort() : []) {
     .sort()
     .map((f) => parseChapter(fs.readFileSync(path.join(dir, f), 'utf8'), f.match(/^(\d+)/)?.[1] ?? f.replace(/\.pgn$/, '')))
   if (!chapters.length) throw new Error(`${id}: no chapters`)
+  meta.topics = [...new Set([...meta.topics, ...chapters.flatMap((c) => c.topics ?? [])])]
   fs.writeFileSync(path.join(OUT, `${id}.json`), JSON.stringify({ id, ...meta, chapters }))
-  index.push({ id, ...meta, chapters: chapters.map((c) => ({ id: c.id, name: c.name })) })
+  index.push({ id, ...meta, chapters: chapters.map((c) => ({ id: c.id, name: c.name, topics: c.topics })) })
   console.log(`studies: ${id} (${chapters.length} chapters)`)
 }
 fs.writeFileSync(path.join(OUT, 'index.json'), JSON.stringify(index))
