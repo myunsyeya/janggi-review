@@ -178,3 +178,33 @@ export function replay(fen: string, ucis: string[]) {
     }),
   )
 }
+
+// --- material (점수) -----------------------------------------------------------------
+
+export const PIECE_POINTS: Record<string, number> = { r: 13, c: 7, n: 5, b: 3, a: 3, p: 2, k: 0 }
+export const KOMI = 1.5 // 덤 for 한
+const START_COUNT: Record<string, number> = { k: 1, a: 2, b: 2, n: 2, r: 2, c: 2, p: 5 }
+const CAPTURE_ORDER = ['r', 'c', 'n', 'b', 'a', 'p']
+
+export interface SideMaterial {
+  score: number // remaining material, 한 includes 덤
+  captured: string[] // opponent piece types this side has taken, most valuable first
+}
+
+/** Points left on the board for each side (with 덤) and which pieces each side has captured. */
+export function material(fen: string): { cho: SideMaterial; han: SideMaterial } {
+  const left = { cho: { ...START_COUNT }, han: { ...START_COUNT } }
+  const have = { cho: 0, han: KOMI }
+  for (const p of parsePieces(fen).values()) {
+    const side = isCho(p) ? 'cho' : 'han'
+    const t = p.toLowerCase()
+    have[side] += PIECE_POINTS[t]
+    left[side][t]--
+  }
+  const taken = (victim: 'cho' | 'han') =>
+    CAPTURE_ORDER.flatMap((t) => Array.from({ length: Math.max(0, left[victim][t]) }, () => t))
+  return {
+    cho: { score: have.cho, captured: taken('han') },
+    han: { score: have.han, captured: taken('cho') },
+  }
+}

@@ -12,17 +12,19 @@ import {
   formatScore,
   isPass,
   lineSan,
+  material,
   parseUci,
   parsePieces,
   sanOf,
   startFen,
+  replay,
   withBoard,
 } from './janggi'
 import { CLASS_INFO, REVIEW_DEPTH, REVIEW_MULTIPV, choWin, reviewMove, type MoveReview, type PosEval, type PrevMove } from "./review"
 import { ROOT, addMove, deleteFrom, isMainline, lineFrom, mainline, newTree, pathTo, promote, treeFromMoves, type Tree } from './tree'
 import { EvalBar, IconAnalysis, IconFirst, IconLast, IconNext, IconPrev, IconReview, LineMoves, PlayerTag, evalSide } from './ui'
 
-const LINE_PLIES = 14
+const LINE_PLIES = 30 // the whole principal variation, practically
 
 export interface GameImport {
   key: string
@@ -119,6 +121,27 @@ export default function Analysis({
     },
     [fen, tree, cur],
   )
+
+  // hovering a move inside an engine line shows that position on a mini board (chess.com style)
+  const [preview, setPreview] = useState<{ fen: string; lastMove: string; x: number; y: number } | null>(null)
+  const hoverLine = useCallback(
+    (fromFen: string, ucis: string[]) => (i: number | null, el?: HTMLElement) => {
+      if (i === null || !el) return setPreview(null)
+      const after = replay(fromFen, ucis.slice(0, i + 1)).at(-1)
+      if (!after) return
+      const r = el.getBoundingClientRect()
+      const size = 240
+      setPreview({
+        fen: after.fen,
+        lastMove: after.uci,
+        x: Math.max(8, (el.closest(".panel")?.getBoundingClientRect().left ?? r.left) - size - 12),
+        y: Math.min(window.innerHeight - size * 1.1 - 8, Math.max(8, r.top - size / 2)),
+      })
+    },
+    [],
+  )
+  useEffect(() => setPreview(null), [cur])
+  const [linesOpen, setLinesOpen] = useState(false)
 
   // clicking a move inside an engine line plays the line up to it (kept as a variation)
   const playLine = useCallback(
@@ -278,6 +301,10 @@ export default function Analysis({
     if (need.length) startReview(need.map((f) => ({ fen: f })), need[0])
   }, [tab, reviewOn, fullRun, reviewing, cur, prevFen, fen, evals, startReview])
 
+  // captured pieces and points (with 덤) for the player tags
+  const mat = useMemo(() => material(fen), [fen])
+  const matFor = (s: "cho" | "han") => ({ ...mat[s], lead: mat[s].score - mat[s === "cho" ? "han" : "cho"].score })
+
   const stored = evals[fen]
   const storedScore = stored
     ? stored.terminal !== undefined
@@ -324,10 +351,15 @@ export default function Analysis({
 
   return (
     <div className="app">
+      {preview && (
+        <div className="mini-board" style={{ left: preview.x, top: preview.y }}>
+          <Board fen={preview.fen} legal={[]} flipped={flipped} lastMove={preview.lastMove} arrows={[]} interactive={false} onMove={() => {}} />
+        </div>
+      )}
       <div className="board-area">
         <EvalBar score={barScore} flipped={flipped} hidden={!engineOn} />
         <div className="board-col">
-          <PlayerTag name={flipped ? names.cho : names.han} side={flipped ? 'cho' : 'han'} />
+          <PlayerTag name={flipped ? names.cho : names.han} side={flipped ? "cho" : "han"} material={matFor(flipped ? "cho" : "han")} />
           <div className="board-wrap">
             {position ? (
               <Board
@@ -345,7 +377,7 @@ export default function Analysis({
               <div className="loading">규칙 엔진 불러오는 중…</div>
             )}
           </div>
-          <PlayerTag name={flipped ? names.han : names.cho} side={flipped ? 'han' : 'cho'} />
+          <PlayerTag name={flipped ? names.han : names.cho} side={flipped ? "han" : "cho"} material={matFor(flipped ? "han" : "cho")} />
         </div>
       </div>
 
@@ -372,6 +404,7 @@ export default function Analysis({
             review={curReview}
             move={cur === ROOT ? null : { san: node.san, fen: node.fen }}
             evaluating={reviewing}
+            onHoverBest={node.parent !== null ? hoverLine(tree.nodes[node.parent].fen, curReview?.bestLine ?? []) : undefined}
             onPickBest={(ucis) => node.parent !== null && playLine(node.parent, ucis)}
             reviews={reviews}
             evals={evals}
@@ -387,6 +420,11 @@ export default function Analysis({
                 <span />
               </label>
               {engineOn && top ? <span className={`eval-big ${evalSide(top)}`}>{formatScore(top)}</span> : null}
+              {engineOn && (
+                <button className="lines-toggle" title={linesOpen ? "수순 접기" : "수순 펼치기"} onClick={() => setLinesOpen((o) => !o)}>
+                  {linesOpen ? "▴" : "▾"}
+                </button>
+              )}
               <span className="engine-name">
                 {engineError
                   ? `엔진 오류: ${engineError}`
@@ -398,7 +436,7 @@ export default function Analysis({
               </span>
             </div>
             {engineOn && (
-              <div className="lines">
+              <div className={`lines ${linesOpen ? "open" : ""}`}>
                 {position?.over ? (
                   <div className="line muted">{resultText()}</div>
                 ) : (
@@ -410,7 +448,12 @@ export default function Analysis({
                           <>
                             <span className={`chip ${evalSide(l.score)}`}>{formatScore(l.score)}</span>
                             <span className="line-moves">
-                              <LineMoves fen={fen} sans={l.san} onPick={(i) => playLine(cur, l.pv.slice(0, i + 1))} />
+                              <LineMoves
+                                fen={fen}
+                                sans={l.san}
+                                onPick={(i) => playLine(cur, l.pv.slice(0, i + 1))}
+                                onHover={hoverLine(fen, l.pv)}
+                              />
                             </span>
                           </>
                         ) : (

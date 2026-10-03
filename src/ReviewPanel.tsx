@@ -27,6 +27,7 @@ export default function ReviewPanel(p: {
   move: { san: string; fen: string } | null // the move shown on the board (main line or variation)
   evaluating: boolean
   onPickBest: (ucis: string[]) => void
+  onHoverBest?: (i: number | null, el?: HTMLElement) => void
   reviews: (MoveReview | null)[]
   evals: Record<string, PosEval>
   onSelect: (i: number) => void
@@ -83,7 +84,7 @@ export default function ReviewPanel(p: {
         )}
         {bestSan && showLine && (
           <div className="coach-line">
-            <LineMoves fen={p.prevFen} sans={lineSan(p.prevFen, r.bestLine, 10)} onPick={(i) => p.onPickBest(r.bestLine.slice(0, i + 1))} />
+            <LineMoves fen={p.prevFen} sans={lineSan(p.prevFen, r.bestLine, 10)} onPick={(i) => p.onPickBest(r.bestLine.slice(0, i + 1))} onHover={p.onHoverBest} />
           </div>
         )}
       </>

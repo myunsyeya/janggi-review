@@ -27,6 +27,7 @@ export function PlayerTag({
   clock,
   active,
   avatar,
+  material,
 }: {
   name: string
   side: 'cho' | 'han'
@@ -34,12 +35,18 @@ export function PlayerTag({
   clock?: number // ms
   active?: boolean
   avatar?: string | null
+  material?: { score: number; captured: string[]; lead: number }
 }) {
   return (
     <div className="player">
       <Avatar side={side} src={avatar} />
-      <span className="player-name">{name}</span>
-      {rating !== undefined && <span className="player-rating">({Math.round(rating)})</span>}
+      <div className="player-main">
+        <div className="player-line">
+          <span className="player-name">{name}</span>
+          {rating !== undefined && <span className="player-rating">({Math.round(rating)})</span>}
+        </div>
+        {material && <MaterialLine side={side} {...material} />}
+      </div>
       {clock !== undefined && (
         <span className={`clock ${active ? 'active' : ''} ${clock < 30000 ? 'low' : ''}`}>{formatClock(clock)}</span>
       )}
@@ -56,7 +63,17 @@ export function formatClock(ms: number) {
 }
 
 /** "3. Hc3 Hc8 4. e5" style rendering of a SAN line starting at `fen`; `onPick(i)` jumps to move i. */
-export function LineMoves({ fen, sans, onPick }: { fen: string; sans: string[]; onPick?: (i: number) => void }) {
+export function LineMoves({
+  fen,
+  sans,
+  onPick,
+  onHover,
+}: {
+  fen: string
+  sans: string[]
+  onPick?: (i: number) => void
+  onHover?: (i: number | null, el?: HTMLElement) => void // for the mini-board preview
+}) {
   const parts = fen.split(" ")
   const cho = parts[1] === "w"
   const fullmove = +parts[5] || 1
@@ -71,6 +88,8 @@ export function LineMoves({ fen, sans, onPick }: { fen: string; sans: string[]; 
             {prefix}
             <span
               className={onPick ? "pv-move" : undefined}
+              onMouseEnter={onHover && ((e) => onHover(i, e.currentTarget))}
+              onMouseLeave={onHover && (() => onHover(null))}
               onClick={
                 onPick &&
                 ((e) => {
@@ -150,3 +169,28 @@ export const IconRanking = () => (
     <path d="M4 13h4v8H4zM10 8h4v13h-4zM16 11h4v10h-4zM12 2l1.2 2.5 2.8.4-2 1.9.5 2.7L12 8.2 9.5 9.5l.5-2.7-2-1.9 2.8-.4z" />
   </svg>
 )
+
+const CAPTURED_HANJA: Record<string, [string, string]> = {
+  r: ['車', '車'],
+  c: ['包', '包'],
+  n: ['馬', '馬'],
+  b: ['象', '象'],
+  a: ['士', '士'],
+  p: ['卒', '兵'],
+}
+
+/** Pieces this side has taken (in the opponent's color) and, for the side ahead, its lead in points (덤 included). */
+function MaterialLine({ side, captured, lead }: { side: "cho" | "han"; captured: string[]; lead: number }) {
+  const victim = side === 'cho' ? 1 : 0 // index into [초, 한] hanja / colors
+  const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1))
+  return (
+    <div className="material" title="점수 차이 (한의 덤 1.5 포함)">
+      {captured.map((t, i) => (
+        <span key={i} className={`cap-piece ${victim ? 'han' : 'cho'} ${t}`}>
+          {CAPTURED_HANJA[t][victim]}
+        </span>
+      ))}
+      {lead > 0 && <span className="lead">+{fmt(lead)}</span>}
+    </div>
+  )
+}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Board from './Board'
 import MoveList from './MoveList'
 import type { GameImport } from './Analysis'
-import { type Setup, isPass, parsePieces, parseUci, replay, startFen, withBoard } from "./janggi"
+import { type Setup, isPass, material, parsePieces, parseUci, replay, startFen, withBoard } from "./janggi"
 import { moveSound, playSound } from "./sound"
 import { Conn, api, saveToken, savedToken, type GameSummary, type GameView, type PublicUser, type Side } from './net'
 import { treeFromMoves } from "./tree"
@@ -174,6 +174,8 @@ export default function Play({
     setNotice(created ? `새 계정이 만들어졌어요: ${tagged(u)}` : null)
   }} />
 
+  const mat = material(fen)
+  const matFor = (s: Side) => ({ ...mat[s], lead: mat[s].score - mat[s === "cho" ? "han" : "cho"].score })
   const flipped = mySide === 'han'
   const bottom: Side = flipped ? 'han' : 'cho'
   const top: Side = flipped ? 'cho' : 'han'
@@ -190,6 +192,7 @@ export default function Play({
         clock={clock(side)}
         active={game.phase === "play" && game.turn === side}
         avatar={game[side].avatar}
+        material={game.startFen ? matFor(side) : undefined}
       />
     ) : (
       <PlayerTag
