@@ -6,6 +6,7 @@ import { evaluate, getEngine, type Analysis as EngineAnalysis, type Engine } fro
 import { SetupPicker } from "./SetupIcon"
 import { moveSound, playSound } from "./sound"
 import { classifyOpening } from "./openings"
+import { useOpening } from "./openingNames"
 import { loadTheory, positionKey } from "./studyData"
 import { OpeningBar } from "./OpeningBar"
 import Explorer from "./Explorer"
@@ -298,10 +299,8 @@ export default function Analysis({
   const reviews = useMemo(() => main.map((id) => treeReviews.get(id) ?? null), [main, treeReviews])
   const reviewed = plies.length > 0 && reviews.every(Boolean)
   const classes = useMemo(() => new Map([...treeReviews].map(([id, r]) => [id, r.cls])), [treeReviews])
-  const opening = useMemo(() => {
-    const line = pathTo(tree, cur).map((id) => tree.nodes[id].uci)
-    return line.length ? classifyOpening(start, line) : null
-  }, [tree, cur, start])
+  const openingLine = useMemo(() => pathTo(tree, cur).map((id) => tree.nodes[id].uci), [tree, cur])
+  const opening = useOpening(start, openingLine, rulesReady)
   const curReview = treeReviews.get(cur) ?? null
 
   // sounds: stepping one move forward plays that move's sound; a 탁월한 수 in the review tab gets its own

@@ -9,6 +9,7 @@
 //
 // Moves may be written in SAN (as shown on the site) or as coordinates (c10d8). Glyphs: ! ? !! ?? !? ?!
 // Shapes inside comments: [%cal Ga1a3,Rb1c3] arrows, [%csl Ge4,Rd5] circles (G green, R red, B blue, Y yellow).
+// [%name 최국수포진] in a move's comment names the position after that move (see scripts/studies.ts).
 import { SETUPS, isPass, sanOf, startFen, withBoard, type Setup } from './janggi.ts'
 
 export interface Shape {
@@ -23,6 +24,8 @@ export interface StudyNode {
   comment?: string
   glyphs?: string[]
   shapes?: Shape[]
+  /** name given to the position after this move */
+  name?: string
   ch: StudyNode[]
 }
 
@@ -40,7 +43,8 @@ const SQ = '[a-i](?:10|[1-9])'
 
 function takeShapes(text: string) {
   const shapes: Shape[] = []
-  const rest = text.replace(/\[%(cal|csl)\s+([^\]]*)\]/g, (_, kind: string, list: string) => {
+  let name: string | undefined
+  const rest = text.replace(/\[%name\s+([^\]]+)\]/g, (_, n: string) => ((name = n.trim()), '')).replace(/\[%(cal|csl)\s+([^\]]*)\]/g, (_, kind: string, list: string) => {
     for (const item of list.split(',').map((x) => x.trim()).filter(Boolean)) {
       const m = new RegExp(`^([GRBY])(${SQ})(${SQ})?$`).exec(item)
       if (!m) throw new Error(`bad shape "${item}"`)
@@ -48,7 +52,7 @@ function takeShapes(text: string) {
     }
     return ''
   })
-  return { shapes, comment: rest.replace(/[ \t]+\n/g, '\n').trim() }
+  return { shapes, name, comment: rest.replace(/[ \t]+\n/g, '\n').trim() }
 }
 
 function tokenize(movetext: string) {
@@ -82,8 +86,12 @@ export function parseChapter(source: string, id: string): StudyChapter {
 
   for (const tok of tokenize(movetext)) {
     if (tok.startsWith('{')) {
-      const { shapes, comment } = takeShapes(tok.slice(1, -1))
+      const { shapes, name, comment } = takeShapes(tok.slice(1, -1))
       const n = cur.last
+      if (name) {
+        if (n === root) throw new Error(`${id}: [%name] belongs in a move's comment, not the chapter's opening comment`)
+        n.name = name
+      }
       if (comment) n.comment = n.comment ? `${n.comment}\n\n${comment}` : comment
       if (shapes.length) n.shapes = [...(n.shapes ?? []), ...shapes]
     } else if (tok === '(') {

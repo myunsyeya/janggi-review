@@ -36,7 +36,8 @@ in `scripts/test-openings.ts`. Example move orders are this project's own.
 Create `content/studies/<id>/study.json` (`title`, `topics`, `description`, `author`, `created`, `updated`) and chapter
 files `01-english-name.pgn`, `02-…` (the name is the chapter's address; topics need an English path in
 `content/studies/topics.json`), each starting with `[Chapter "…"] [Cho "상마상마"] [Han "마상마상"]`, then movetext such as
-`1. ab4! { why [%cal Ga1a3] } (1. ih4 { … }) 1... Hd8 …`. `npm run build` checks every move and publishes the pages. Moves written with a move number inside a comment
+`1. ab4! { why [%cal Ga1a3] } (1. ih4 { … }) 1... Hd8 …`. `npm run build` checks every move and publishes the pages. `[%name 최국수포진]` in a move's comment names the position after it: opening bars on the analysis board, review
+and games then show that name and link to the chapter (position-based; one name per position). Moves written with a move number inside a comment
 (`… 2...Hd8 3. Hg3 …`) become clickable in the viewer.
 
 ### Daily research

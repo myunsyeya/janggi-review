@@ -4,8 +4,8 @@
 // and on any topic missing from content/studies/topics.json.
 import fs from 'node:fs'
 import path from 'node:path'
-import { loadRules } from '../src/janggi.ts'
-import { parseChapter } from '../src/studyFormat.ts'
+import { loadRules, startFen, withBoard } from '../src/janggi.ts'
+import { parseChapter, type StudyNode } from '../src/studyFormat.ts'
 
 const ROOT = path.join(path.dirname(new URL(import.meta.url).pathname), '..')
 const SRC = path.join(ROOT, 'content/studies')
@@ -27,6 +27,9 @@ for (const slug of Object.values(TOPICS)) if (!/^[a-z0-9-]+$/.test(slug)) throw 
 fs.rmSync(OUT, { recursive: true, force: true })
 fs.mkdirSync(OUT, { recursive: true })
 const index = []
+// position (board + side to move) -> the name a study gave it, and where
+const names: Record<string, { name: string; study: string; chapter: string; path: string }> = {}
+const positionKey = (fen: string) => fen.split(' ').slice(0, 2).join(' ')
 for (const id of fs.existsSync(SRC) ? fs.readdirSync(SRC).sort() : []) {
   const dir = path.join(SRC, id)
   if (!fs.statSync(dir).isDirectory()) continue
@@ -45,9 +48,27 @@ for (const id of fs.existsSync(SRC) ? fs.readdirSync(SRC).sort() : []) {
   for (const c of chapters) if (!c.root.comment) throw new Error(`${id}/${c.id}: start the chapter with a { comment } that sums it up (used as its search description)`)
   meta.topics = [...new Set([...meta.topics, ...chapters.flatMap((c) => c.topics ?? [])])]
   for (const t of meta.topics) if (!TOPICS[t]) throw new Error(`${id}: topic "${t}" has no English path in content/studies/topics.json`)
+  chapters.forEach((ch, i) => {
+    const chapterPath = i === 0 ? `/study/${id}` : `/study/${id}/${ch.id}`
+    const visit = (node: StudyNode, fen: string) => {
+      for (const c of node.ch) {
+        const after = withBoard(fen, (b) => (b.push(c.uci!), b.fen()))
+        if (c.name) {
+          const key = positionKey(after)
+          const had = names[key]
+          if (had && had.name !== c.name) throw new Error(`${id}/${ch.id}: this position is already named "${had.name}" (${had.path}); one name per position`)
+          names[key] ??= { name: c.name, study: id, chapter: ch.id, path: chapterPath }
+        }
+        visit(c, after)
+      }
+    }
+    visit(ch.root, startFen(ch.cho, ch.han))
+  })
   fs.writeFileSync(path.join(OUT, `${id}.json`), JSON.stringify({ id, ...meta, chapters }))
   index.push({ id, ...meta, chapters: chapters.map((c) => ({ id: c.id, name: c.name, topics: c.topics })) })
   console.log(`studies: ${id} (${chapters.length} chapters)`)
 }
 fs.writeFileSync(path.join(OUT, 'index.json'), JSON.stringify(index))
 fs.writeFileSync(path.join(OUT, 'topics.json'), JSON.stringify(TOPICS))
+fs.writeFileSync(path.join(OUT, 'names.json'), JSON.stringify(names))
+console.log(`studies: ${Object.keys(names).length} named positions`)

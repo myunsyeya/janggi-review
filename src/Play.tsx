@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { nameOpening, usePositionNames } from './openingNames'
 import Board from './Board'
 import MoveList from './MoveList'
 import type { GameImport } from './Analysis'
@@ -8,7 +9,6 @@ import { Conn, api, saveToken, savedToken, type GameSummary, type GameView, type
 import { treeFromMoves } from "./tree"
 import { SetupIcon, SetupPicker } from "./SetupIcon"
 import GameRow, { loadGameImport } from "./GameRow"
-import { classifyOpening } from "./openings"
 import { OpeningBar } from "./OpeningBar"
 import type { Presence } from "./presence"
 import { Avatar, EvalBar, OnlineBadge, useHeldKey, IconFirst, IconLast, IconNext, IconPrev, PlayerTag, formatClock } from "./ui"
@@ -31,6 +31,7 @@ export default function Play({
   active: boolean
   onReview: (g: GameImport) => void
 }) {
+  const positionNames = usePositionNames(true)
   const [token, setToken] = useState<string | null>(() => savedToken())
   const [me, setMe] = useState<PublicUser | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -279,7 +280,7 @@ export default function Play({
         )}
 
         {(inGame || game?.phase === 'over') && game?.startFen && game.moves.length > 0 && (
-          <OpeningBar opening={classifyOpening(game.startFen, game.moves)} />
+          <OpeningBar opening={nameOpening(game.startFen, game.moves, positionNames)} link={game.phase === 'over'} />
         )}
         {inGame || game?.phase === 'over' ? (
           <MoveList

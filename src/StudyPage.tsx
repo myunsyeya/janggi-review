@@ -2,7 +2,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Board, { type Arrow } from './Board'
 import { OpeningBar } from './OpeningBar'
-import { classifyOpening } from './openings'
+import { useOpening } from './openingNames'
 import { api, savedToken } from './net'
 import { isPass, parsePieces, parseUci, withBoard } from './janggi'
 import { moveSound, playSound } from './sound'
@@ -89,12 +89,12 @@ export default function StudyPage({
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const opening = useMemo(() => {
-    if (!node || !chapter || !node.ply) return null
+  const openingLine = useMemo(() => {
     const line: string[] = []
     for (let n: ViewNode | undefined = node; n && n.parent !== null; n = nodes[n.parent]) line.unshift(n.uci)
-    return classifyOpening(nodes[0].fen, line)
-  }, [node, chapter, nodes])
+    return line
+  }, [node, nodes])
+  const opening = useOpening(nodes[0]?.fen ?? '', openingLine, rulesReady && !!nodes.length)
 
   if (study === null) return <div className="studies muted pad">연구를 찾을 수 없어요.</div>
   if (!study || !chapter || !node) return <div className="studies muted pad">불러오는 중…</div>
