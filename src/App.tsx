@@ -5,7 +5,8 @@ import Ranking from './Ranking'
 import { usePresence } from './presence'
 import { loadRules } from './janggi'
 import { PAGES, pageFor } from './seo'
-import { IconAnalysis, IconPlay, IconRanking } from './ui'
+import { SETUPS, replay, startFen, withBoard, type Setup } from './janggi'
+import { IconAnalysis, IconLearn, IconPlay, IconRanking } from './ui'
 
 type AppPage = 'play' | 'analysis' | 'ranking'
 const APP_PAGES: Partial<Record<string, AppPage>> = { '/': 'play', '/analysis': 'analysis', '/ranking': 'ranking' }
@@ -25,6 +26,26 @@ function pathFromLocation(): string {
   return '/'
 }
 
+/** /analysis?cho=상마상마&han=마상마상&moves=h1g3,h3e3 → that line on the analysis board (used by learning pages). */
+function lineFromUrl(url: URL): GameImport | null {
+  const moves = url.searchParams.get('moves')
+  if (url.pathname !== '/analysis' || !moves) return null
+  const setup = (v: string | null): Setup => (SETUPS as readonly string[]).includes(v ?? '') ? (v as Setup) : '마상상마'
+  const fen = startFen(setup(url.searchParams.get('cho')), setup(url.searchParams.get('han')))
+  const ucis = moves.split(',').filter(Boolean)
+  // keep only the legal prefix
+  const legal = withBoard(fen, (b) => {
+    const ok: string[] = []
+    for (const u of ucis) {
+      if (!b.legalMoves().split(' ').includes(u)) break
+      b.push(u)
+      ok.push(u)
+    }
+    return ok
+  })
+  return { key: url.search, startFen: fen, moves: replay(fen, legal) }
+}
+
 export default function App() {
   const [rulesReady, setRulesReady] = useState(false)
   const [path, setPath] = useState(pathFromLocation)
@@ -34,7 +55,11 @@ export default function App() {
   const page: AppPage | 'doc' = APP_PAGES[path] ?? 'doc'
 
   useEffect(() => {
-    loadRules().then(() => setRulesReady(true))
+    loadRules().then(() => {
+      setRulesReady(true)
+      const line = lineFromUrl(new URL(location.href))
+      if (line) setLoad(line)
+    })
     const onPop = () => setPath(pathFromLocation())
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
@@ -58,6 +83,8 @@ export default function App() {
     const url = new URL(a.href, location.href)
     if (url.origin !== location.origin || !known(url.pathname)) return
     e.preventDefault()
+    const line = rulesReady ? lineFromUrl(url) : null
+    if (line) setLoad(line)
     go(url.pathname)
   }
 
@@ -84,6 +111,10 @@ export default function App() {
         <NavLink to="/ranking">
           <IconRanking />
           <span>순위</span>
+        </NavLink>
+        <NavLink to="/learn" className={path.startsWith('/openings/') ? 'active' : ''}>
+          <IconLearn />
+          <span>학습</span>
         </NavLink>
         <div className="sidebar-foot">
           <NavLink to="/licenses" className="foot-link">

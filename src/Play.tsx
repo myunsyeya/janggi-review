@@ -8,6 +8,8 @@ import { Conn, api, saveToken, savedToken, type GameSummary, type GameView, type
 import { treeFromMoves } from "./tree"
 import { SetupIcon, SetupPicker } from "./SetupIcon"
 import GameRow, { loadGameImport } from "./GameRow"
+import { classifyOpening } from "./openings"
+import { OpeningBar } from "./OpeningBar"
 import type { Presence } from "./presence"
 import { Avatar, EvalBar, OnlineBadge, useHeldKey, IconFirst, IconLast, IconNext, IconPrev, PlayerTag, formatClock } from "./ui"
 
@@ -276,6 +278,9 @@ export default function Play({
           <SetupPhase game={game} mySide={mySide} send={send} onHover={setHoverSetup} />
         )}
 
+        {(inGame || game?.phase === 'over') && game?.startFen && game.moves.length > 0 && (
+          <OpeningBar opening={classifyOpening(game.startFen, game.moves)} />
+        )}
         {inGame || game?.phase === 'over' ? (
           <MoveList
             result={game?.phase === "over" && game.result ? resultLabel(game.result, game.reason) : null}

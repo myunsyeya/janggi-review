@@ -1913,3 +1913,94 @@ button {
     height: auto;
   }
 }
+
+/* --- opening name above the move list ------------------------------------------------ */
+
+.opening-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--panel-line);
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffffcc;
+  min-height: 36px;
+}
+.opening-name {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+}
+.opening-link {
+  flex: none;
+  color: #8fc25a;
+  font-size: 12px;
+  text-decoration: none;
+}
+.opening-link:hover {
+  text-decoration: underline;
+}
+
+/* --- opening explorer ------------------------------------------------------------------ */
+
+.explorer {
+  border-bottom: 1px solid var(--panel-line);
+  max-height: 45%;
+  overflow-y: auto;
+  flex: 0 1 auto;
+}
+.explorer-head,
+.explorer-row {
+  display: grid;
+  grid-template-columns: 70px 76px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 12px;
+}
+.explorer-head {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.explorer-row {
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 14px;
+}
+.explorer-row:hover {
+  background: var(--row-alt);
+}
+.explorer-move {
+  font-weight: 800;
+}
+.explorer-n {
+  font-size: 13px;
+}
+.explorer-bar {
+  display: flex;
+  height: 18px;
+  border-radius: 3px;
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+}
+.explorer-bar span {
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.b-cho {
+  background: #fff;
+  color: #312e2b;
+}
+.b-draw {
+  background: #8a8784;
+}
+.b-han {
+  background: #403d39;
+  color: #fff;
+}

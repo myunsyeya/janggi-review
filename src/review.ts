@@ -30,13 +30,14 @@ export const CLASS_INFO: Record<MoveClass, { label: string; color: string }> = {
   blunder: { label: '블런더', color: '#fa412d' },
 }
 
-/** Rows of the summary table, in chess.com's order (no opening book for janggi, so no 이론에 있는 수). */
+/** Rows of the summary table, in chess.com's order. 이론에 있는 수 = moves that build a recognized 포진 (src/openings.ts). */
 export const SUMMARY_ORDER: MoveClass[] = [
   'brilliant',
   'great',
   'best',
   'excellent',
   'good',
+  'book',
   'inaccuracy',
   'mistake',
   'miss',

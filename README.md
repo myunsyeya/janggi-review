@@ -16,8 +16,18 @@ The engine (Fairy-Stockfish with a janggi NNUE network) runs in the visitor's br
 - **Online play** — nickname + password accounts with Battle.net-style numeric tags (`name#1234`), automatic matchmaking,
   random sides, both players choose their setup (한 first, then 초), 10 min + 5 s, premove queue (including recaptures),
   pass, draw offers, resignation, Glicko-2 ratings, profile pictures, online counter.
+- **Openings** — the current 포진 is named above the move list (chess.com style), e.g. `귀마 대 귀마: 엇상 · 최국수포진`,
+  judged on the position so transpositions get the same name; moves that build the formation are marked as theory
+  (이론에 있는 수) in game review. An **explorer** tab shows the moves played from the current position in this site's games.
+- **Learn** — `/learn` (포진 overview, the nine 귀마 대 귀마 후수 포진) and `/openings/choigooksu`; example lines open on the board.
 - **Ranking** — leaderboard with win/draw/loss and win rate, nickname search, per-player history that opens in game review.
 - Captured pieces and material lead (한 gets a 1.5-point komi), move-list results such as `1-0 (초 승) · 기권`, sounds.
+
+## Opening sources
+
+The 포진 taxonomy follows 나무위키 (귀마 포진, 원앙마 포진, 장기/용어), 위키책 (장기/초반 포진법) and the classification of
+귀마 대 귀마 후수 포진 posted on DC 장기 마이너 갤러리 (2023-05-30), whose nine diagrams are reproduced as legal positions
+in `scripts/test-openings.ts`. Example move orders are this project's own.
 
 ## Rules and notation
 
@@ -39,7 +49,10 @@ src/            React app (Vite, TypeScript)
   Analysis.tsx    analysis board and game review
   Play.tsx        login, lobby, live games, premoves
   Ranking.tsx     leaderboard and player records
-  seo.ts, docs.ts page metadata and document pages (licenses, privacy)
+  openings.ts     포진 recognition (formation, 맞상/엇상, 정형/변형, 후수 pawn variations, 최국수/김경만, 16번 기본수)
+  openingLines.ts example lines for the learning pages and tests
+  Explorer.tsx    explorer tab (server keeps per-position move statistics of finished games)
+  seo.ts, docs.ts, learnDocs.ts  page metadata and document pages (learn, openings, licenses, privacy)
 server/         game server (Node 24 runs the TypeScript directly)
   index.ts        HTTP API (/api), WebSocket (/ws, /ws/presence), matchmaking, clocks, ratings, SQLite (node:sqlite)
   glicko2.ts      Glicko-2
@@ -47,6 +60,8 @@ scripts/
   seo.ts          post-build: pre-rendered HTML per page, sitemap.xml, 404.html
   setup-engine.sh copies the engine files and downloads the janggi NNUE (checksum verified)
   og-image.mjs    renders public/og.png
+  test-openings.ts opening recognition tests (`npm test`)
+  check-lines.cjs  engine check of the example lines (flags moves losing > 0.10)
   janggictl       operations helper (status, deploy, restart, logs, backup)
 deploy/         example Caddyfile and launchd agents
 ```

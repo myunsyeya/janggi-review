@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "setup-engine": "./scripts/setup-engine.sh",
-    "server": "node server/index.ts"
+    "server": "node server/index.ts",
+    "test": "node scripts/test-openings.ts"
   },
   "dependencies": {
     "fairy-stockfish-nnue.wasm": "^1.1.12",

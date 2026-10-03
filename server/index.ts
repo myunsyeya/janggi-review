@@ -353,10 +353,42 @@ function finish(g: Game, result: NonNullable<Game['result']>, reason: string) {
   )
   activeGameOf.delete(cho.id)
   activeGameOf.delete(han.id)
+  if (g.startFen) addToExplorer(g.startFen, g.moves, result)
   broadcast(g)
   presenceChanged()
   setTimeout(() => games.delete(g.id), 10 * 60 * 1000)
 }
+
+// --- opening explorer -------------------------------------------------------------
+// For every position in the first EXPLORER_PLIES moves of finished games: which moves were played and how
+// those games ended. Built from the database at startup and updated when a game ends.
+
+const EXPLORER_PLIES = 30
+type Tally = { n: number; cho: number; draw: number; han: number }
+const explorer = new Map<string, Map<string, Tally>>()
+const positionKey = (fen: string) => fen.split(' ').slice(0, 2).join(' ')
+
+function addToExplorer(start: string, moves: string[], result: string) {
+  withBoard(start, (b) => {
+    for (const uci of moves.slice(0, EXPLORER_PLIES)) {
+      const key = positionKey(b.fen())
+      if (!b.legalMoves().split(' ').includes(uci)) return
+      let next = explorer.get(key)
+      if (!next) explorer.set(key, (next = new Map()))
+      const t = next.get(uci) ?? { n: 0, cho: 0, draw: 0, han: 0 }
+      t.n++
+      if (result === '1-0') t.cho++
+      else if (result === '0-1') t.han++
+      else t.draw++
+      next.set(uci, t)
+      b.push(uci)
+    }
+  })
+}
+
+for (const row of db.prepare('SELECT start_fen, moves, result FROM games').all() as { start_fen: string; moves: string; result: string }[])
+  addToExplorer(row.start_fen, row.moves.split(' ').filter(Boolean), row.result)
+console.log(`explorer: ${explorer.size} positions`)
 
 // --- matchmaking ---------------------------------------------------------------
 
@@ -520,6 +552,13 @@ const server = http.createServer(async (req, res) => {
         "X-Content-Type-Options": "nosniff",
       })
       return res.end(fs.readFileSync(file))
+    }
+    if (url.pathname === "/api/explorer") {
+      const fen = url.searchParams.get("fen") ?? ""
+      const moves = [...(explorer.get(positionKey(fen)) ?? new Map<string, Tally>())]
+        .map(([uci, t]) => ({ uci, ...t }))
+        .sort((a, b) => b.n - a.n)
+      return json(res, 200, { moves, total: moves.reduce((s, m) => s + m.n, 0) })
     }
     if (url.pathname === "/api/leaderboard") {
       const rows = db.prepare("SELECT * FROM users WHERE games > 0 ORDER BY rating DESC LIMIT 100").all() as unknown as User[]
