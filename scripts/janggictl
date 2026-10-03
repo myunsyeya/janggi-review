@@ -1,0 +1,57 @@
+#!/bin/zsh
+# Day-to-day control of the janggi site. Usage: janggi <command>
+set -e
+APP="$HOME/janggi-review"
+export PATH="$HOME/.local/node/bin:$HOME/.local/bin:$PATH"
+UID_=$(id -u)
+SERVER=com.myunsyeya.janggi-server
+CADDY=com.myunsyeya.caddy
+
+live_games() { curl -s --max-time 3 http://127.0.0.1:8787/internal/status; }
+
+case "$1" in
+  status)
+    for s in $SERVER $CADDY; do
+      st=$(launchctl print gui/$UID_/$s 2>/dev/null | awk '/^\tstate =/{print $3}')
+      echo "$s: ${st:-not loaded}"
+    done
+    echo "game server: $(live_games || echo 'not responding')"
+    echo "site: $(curl -s -o /dev/null -w '%{http_code}' https://myunsyeya.com/)"
+    ;;
+  deploy)   # rebuild the web app; Caddy serves dist/ directly, no restart needed
+    cd "$APP" && npx tsc -b && npx vite build
+    ;;
+  restart)  # restart the game server (live games are in memory and would be lost)
+    n=$(live_games | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).liveGames.length)}catch{console.log(0)}})')
+    if [[ "$n" != "0" && "$2" != "-f" ]]; then
+      echo "진행 중인 대국 ${n}판이 있어요. 그래도 재시작하려면: janggi restart -f"; live_games; echo; exit 1
+    fi
+    launchctl kickstart -k gui/$UID_/$SERVER && sleep 2 && tail -1 "$HOME/Library/Logs/janggi-server.log"
+    ;;
+  caddy)    # reload Caddy after editing ~/.config/caddy/Caddyfile
+    caddy validate --config "$HOME/.config/caddy/Caddyfile" --adapter caddyfile && \
+      caddy reload --config "$HOME/.config/caddy/Caddyfile" --adapter caddyfile
+    ;;
+  logs)     # follow the game server log (or: janggi logs caddy)
+    if [[ "$2" == "caddy" ]]; then tail -f "$HOME/Library/Logs/caddy/caddy.log"
+    else tail -f "$HOME/Library/Logs/janggi-server.log"; fi
+    ;;
+  stop)
+    launchctl bootout gui/$UID_/$SERVER 2>/dev/null || true
+    launchctl bootout gui/$UID_/$CADDY 2>/dev/null || true
+    echo "stopped (janggi start to bring them back)"
+    ;;
+  start)
+    launchctl bootstrap gui/$UID_ "$HOME/Library/LaunchAgents/$CADDY.plist" 2>/dev/null || true
+    launchctl bootstrap gui/$UID_ "$HOME/Library/LaunchAgents/$SERVER.plist" 2>/dev/null || true
+    "$0" status
+    ;;
+  backup)   # copy the database, secret and avatars
+    d="$HOME/janggi-backups/$(date +%Y%m%d-%H%M%S)"; mkdir -p "$d"
+    node -e "new (require('node:sqlite').DatabaseSync)('$APP/server/data/janggi.db').exec(\"VACUUM INTO '$d/janggi.db'\")"
+    cp -R "$APP/server/data/secret" "$APP/server/data/avatars" "$d/" && echo "backup: $d"
+    ;;
+  *)
+    echo "janggi status | deploy | restart [-f] | caddy | logs [caddy] | start | stop | backup"
+    ;;
+esac

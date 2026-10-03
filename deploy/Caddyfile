@@ -1,0 +1,24 @@
+myunsyeya.com {
+	root * /Users/myunsyeya/janggi-review/dist
+	encode zstd gzip
+	# engine threads need SharedArrayBuffer -> cross-origin isolation
+	header {
+		Cross-Origin-Opener-Policy same-origin
+		Cross-Origin-Embedder-Policy require-corp
+	}
+	@engine path /engine/*
+	header @engine Cache-Control "public, max-age=86400"
+	handle /api/* {
+		reverse_proxy 127.0.0.1:8787
+	}
+	handle /ws {
+		reverse_proxy 127.0.0.1:8787
+	}
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+	log {
+		output file /Users/myunsyeya/Library/Logs/caddy/access.log
+	}
+}

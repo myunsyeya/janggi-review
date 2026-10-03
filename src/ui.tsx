@@ -1,0 +1,152 @@
+import type { ReactNode } from 'react'
+import { barPercent } from './janggi'
+
+export type Score = { cp?: number; mate?: number }
+
+export function evalSide(s: Score) {
+  const v = s.mate ?? s.cp ?? 0
+  return v >= 0 ? 'cho' : 'han'
+}
+
+export function EvalBar({ score, flipped, hidden }: { score: Score; flipped: boolean; hidden: boolean }) {
+  const pct = barPercent(score)
+  const choAhead = (score.mate ?? score.cp ?? 0) >= 0
+  const label = score.mate !== undefined ? `M${Math.abs(score.mate)}` : Math.abs((score.cp ?? 0) / 100).toFixed(1)
+  return (
+    <div className={`evalbar ${flipped ? 'flipped' : ''} ${hidden ? 'hidden' : ''}`}>
+      <div className="evalbar-cho" style={{ height: `${pct}%` }} />
+      {!hidden && <span className={`evalbar-label ${choAhead ? 'cho' : 'han'}`}>{label}</span>}
+    </div>
+  )
+}
+
+export function PlayerTag({
+  name,
+  side,
+  rating,
+  clock,
+  active,
+  avatar,
+}: {
+  name: string
+  side: 'cho' | 'han'
+  rating?: number
+  clock?: number // ms
+  active?: boolean
+  avatar?: string | null
+}) {
+  return (
+    <div className="player">
+      <Avatar side={side} src={avatar} />
+      <span className="player-name">{name}</span>
+      {rating !== undefined && <span className="player-rating">({Math.round(rating)})</span>}
+      {clock !== undefined && (
+        <span className={`clock ${active ? 'active' : ''} ${clock < 30000 ? 'low' : ''}`}>{formatClock(clock)}</span>
+      )}
+    </div>
+  )
+}
+
+export function formatClock(ms: number) {
+  const t = Math.max(0, ms)
+  const m = Math.floor(t / 60000)
+  const s = Math.floor((t % 60000) / 1000)
+  if (t < 10000) return `${m}:${String(s).padStart(2, '0')}.${Math.floor((t % 1000) / 100)}`
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+/** "3. Hc3 Hc8 4. e5" style rendering of a SAN line starting at `fen`; `onPick(i)` jumps to move i. */
+export function LineMoves({ fen, sans, onPick }: { fen: string; sans: string[]; onPick?: (i: number) => void }) {
+  const parts = fen.split(" ")
+  const cho = parts[1] === "w"
+  const fullmove = +parts[5] || 1
+  return (
+    <>
+      {sans.map((s, i) => {
+        const isCho = cho ? i % 2 === 0 : i % 2 === 1
+        const n = fullmove + Math.floor((i + (cho ? 0 : 1)) / 2)
+        const prefix = isCho ? `${n}. ` : i === 0 ? `${n}... ` : ""
+        return (
+          <span key={i}>
+            {prefix}
+            <span
+              className={onPick ? "pv-move" : undefined}
+              onClick={
+                onPick &&
+                ((e) => {
+                  e.stopPropagation()
+                  onPick(i)
+                })
+              }
+            >
+              {s}
+            </span>{" "}
+          </span>
+        )
+      })}
+    </>
+  )
+}
+
+export function Coach({ children }: { children: ReactNode }) {
+  return (
+    <div className="coach">
+      <span className="coach-avatar">楚</span>
+      <div className="bubble">{children}</div>
+    </div>
+  )
+}
+
+// --- icons ---------------------------------------------------------------------
+
+const svgProps = { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'currentColor' }
+export const IconFirst = () => (
+  <svg {...svgProps}>
+    <path d="M6 5h2v14H6zM20 5v14l-10-7z" />
+  </svg>
+)
+export const IconPrev = () => (
+  <svg {...svgProps}>
+    <path d="M16 5v14L6 12z" />
+  </svg>
+)
+export const IconNext = () => (
+  <svg {...svgProps}>
+    <path d="M8 5v14l10-7z" />
+  </svg>
+)
+export const IconLast = () => (
+  <svg {...svgProps}>
+    <path d="M16 5h2v14h-2zM4 5v14l10-7z" />
+  </svg>
+)
+export const IconAnalysis = () => (
+  <svg {...svgProps} width={18} height={18}>
+    <path d="M3 3h2v16h16v2H3zm4 10 4-4 3 3 5-6 1.5 1.3L14.2 15 11 12l-2.6 2.6z" />
+  </svg>
+)
+export const IconReview = () => (
+  <svg {...svgProps} width={18} height={18}>
+    <path d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 16.9l-6.1 3.5 1.5-6.8L2.2 9l6.9-.7z" />
+  </svg>
+)
+export const IconPlay = () => (
+  <svg {...svgProps} width={18} height={18}>
+    <path d="M7 4h10l-1.5 3H17v2h-2l1 9H8l1-9H7V7h1.5zM6 19h12v2H6z" />
+  </svg>
+)
+
+export function Avatar({ side, src, size = 32 }: { side: 'cho' | 'han'; src?: string | null; size?: number }) {
+  return src ? (
+    <img className="avatar avatar-img" src={src} width={size} height={size} alt="" />
+  ) : (
+    <span className={`avatar ${side}`} style={{ width: size, height: size, fontSize: size * 0.5 }}>
+      {side === 'cho' ? '楚' : '漢'}
+    </span>
+  )
+}
+export const IconRanking = () => (
+  <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M4 13h4v8H4zM10 8h4v13h-4zM16 11h4v10h-4zM12 2l1.2 2.5 2.8.4-2 1.9.5 2.7L12 8.2 9.5 9.5l.5-2.7-2-1.9 2.8-.4z" />
+  </svg>
+)
