@@ -2,6 +2,8 @@ import { useEffect, useState, type MouseEvent, type ReactNode } from 'react'
 import Analysis, { type GameImport } from './Analysis'
 import Play from './Play'
 import Ranking from './Ranking'
+import StudyList from './StudyList'
+import StudyPage from './StudyPage'
 import { usePresence } from './presence'
 import { loadRules } from './janggi'
 import { PAGES, pageFor } from './seo'
@@ -11,7 +13,16 @@ import { IconAnalysis, IconLearn, IconPlay, IconRanking } from './ui'
 type AppPage = 'play' | 'analysis' | 'ranking'
 const APP_PAGES: Partial<Record<string, AppPage>> = { '/': 'play', '/analysis': 'analysis', '/ranking': 'ranking' }
 const DOC_PATHS = new Set(PAGES.filter((p) => p.doc).map((p) => p.path))
-const known = (path: string) => path in APP_PAGES || DOC_PATHS.has(path)
+// /study, /study/topic/<topic>, /study/<id>, /study/<id>/<chapter>
+function studyRoute(path: string) {
+  if (path === '/study') return { list: true as const, topic: null }
+  const t = /^\/study\/topic\/([^/]+)$/.exec(path)
+  if (t) return { list: true as const, topic: decodeURIComponent(t[1]) }
+  const m = /^\/study\/([a-z0-9-]+)(?:\/([\w-]+))?$/.exec(path)
+  if (m) return { list: false as const, id: m[1], chapter: m[2] ?? null }
+  return null
+}
+const known = (path: string) => path in APP_PAGES || DOC_PATHS.has(path) || !!studyRoute(path)
 
 function pathFromLocation(): string {
   // old links used #analysis / #ranking
@@ -52,7 +63,8 @@ export default function App() {
   const [load, setLoad] = useState<GameImport | null>(null)
   const presence = usePresence()
   const [seek, setSeek] = useState(0) // bumped to make the play page join the queue
-  const page: AppPage | 'doc' = APP_PAGES[path] ?? 'doc'
+  const study = studyRoute(path)
+  const page: AppPage | 'doc' | 'study' = APP_PAGES[path] ?? (study ? 'study' : 'doc')
 
   useEffect(() => {
     loadRules().then(() => {
@@ -68,7 +80,8 @@ export default function App() {
   useEffect(() => {
     const meta = pageFor(path)
     if (meta) document.title = meta.title
-    if (page === 'doc') window.scrollTo(0, 0)
+    else if (page === 'study' && study?.list) document.title = `${study.topic ?? '모든 연구'} — 장기 연구 | 초한 장기`
+    if (page === 'doc' || page === 'study') window.scrollTo(0, 0)
   }, [path, page])
 
   const go = (to: string) => {
@@ -112,7 +125,7 @@ export default function App() {
           <IconRanking />
           <span>순위</span>
         </NavLink>
-        <NavLink to="/learn" className={path.startsWith('/openings/') ? 'active' : ''}>
+        <NavLink to="/study" className={page === 'study' ? 'active' : ''}>
           <IconLearn />
           <span>학습</span>
         </NavLink>
@@ -157,6 +170,16 @@ export default function App() {
           }}
         />
       </main>
+      {study?.list && (
+        <main className="page">
+          <StudyList topic={study.topic} active />
+        </main>
+      )}
+      {study && !study.list && (
+        <main className="page">
+          <StudyPage id={study.id} chapterId={study.chapter} active rulesReady={rulesReady} />
+        </main>
+      )}
       {doc && (
         <main className="page">
           {/* our own static HTML from src/docs.ts */}

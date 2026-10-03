@@ -160,8 +160,8 @@ export function classifyOpening(startFen: string, ucis: string[]): Opening {
   }
 
   let named: Opening['named']
-  if (han.chariot === '최국수포진') named = { title: '최국수포진', page: '/openings/choigooksu' }
-  else if (han.chariot === '김경만포진') named = { title: '5선 최국수포진 (김경만포진)', page: '/openings/choigooksu' }
+  if (han.chariot === '최국수포진') named = { title: '최국수포진' }
+  else if (han.chariot === '김경만포진') named = { title: '5선 최국수포진 (김경만포진)' }
   else if (cho.formation === '원앙마' && han.formation === '귀마' && isBasic16(pieces)) named = { title: '16번 기본수' }
 
   const parts: string[] = []

@@ -292,7 +292,10 @@ export default function Board({
           const dx = q.x - p.x
           const dy = q.y - p.y
           const len = Math.hypot(dx, dy)
-          if (len === 0) return null
+          if (len === 0) {
+            // a circle (from === to), e.g. a highlighted square from a study
+            return <circle key={'a' + i} cx={p.x} cy={p.y} r={0.46} fill="none" stroke={a.color} strokeWidth={0.07} opacity={0.85} />
+          }
           const ux = dx / len
           const uy = dy / len
           const head = 0.42

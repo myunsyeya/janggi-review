@@ -19,7 +19,9 @@ The engine (Fairy-Stockfish with a janggi NNUE network) runs in the visitor's br
 - **Openings** — the current 포진 is named above the move list (chess.com style), e.g. `귀마 대 귀마: 엇상 · 최국수포진`,
   judged on the position so transpositions get the same name; moves that build the formation are marked as theory
   (이론에 있는 수) in game review. An **explorer** tab shows the moves played from the current position in this site's games.
-- **Learn** — `/learn` (포진 overview, the nine 귀마 대 귀마 후수 포진) and `/openings/choigooksu`; example lines open on the board.
+- **Studies** (`/study`, menu 학습) — research notes laid out like lichess studies: topic list with study cards, and study
+  pages with chapters, the board showing each move's arrows and highlights, an annotated move tree with variations, and the
+  candidate next moves. The notes are written by the site's maintainer from engine analysis; readers can only like them.
 - **Ranking** — leaderboard with win/draw/loss and win rate, nickname search, per-player history that opens in game review.
 - Captured pieces and material lead (한 gets a 1.5-point komi), move-list results such as `1-0 (초 승) · 기권`, sounds.
 
@@ -28,6 +30,12 @@ The engine (Fairy-Stockfish with a janggi NNUE network) runs in the visitor's br
 The 포진 taxonomy follows 나무위키 (귀마 포진, 원앙마 포진, 장기/용어), 위키책 (장기/초반 포진법) and the classification of
 귀마 대 귀마 후수 포진 posted on DC 장기 마이너 갤러리 (2023-05-30), whose nine diagrams are reproduced as legal positions
 in `scripts/test-openings.ts`. Example move orders are this project's own.
+
+## Writing a study
+
+Create `content/studies/<id>/study.json` (`title`, `topics`, `description`, `author`, `created`, `updated`) and chapter
+files `01-name.pgn`, `02-…`, each starting with `[Chapter "…"] [Cho "상마상마"] [Han "마상마상"]`, then movetext such as
+`1. ab4! { why [%cal Ga1a3] } (1. ih4 { … }) 1... Hd8 …`. `npm run build` checks every move and publishes the pages.
 
 ## Rules and notation
 
@@ -52,12 +60,16 @@ src/            React app (Vite, TypeScript)
   openings.ts     포진 recognition (formation, 맞상/엇상, 정형/변형, 후수 pawn variations, 최국수/김경만, 16번 기본수)
   openingLines.ts example lines for the learning pages and tests
   Explorer.tsx    explorer tab (server keeps per-position move statistics of finished games)
-  seo.ts, docs.ts, learnDocs.ts  page metadata and document pages (learn, openings, licenses, privacy)
+  StudyList.tsx, StudyPage.tsx   study list and study viewer; studyFormat.ts parses chapter files
+  seo.ts, docs.ts page metadata and document pages (licenses, privacy)
+content/studies/<id>/  study.json + NN-name.pgn chapters (PGN movetext in this site's notation, {comments},
+                [%cal …] arrows, [%csl …] circles, glyphs, (variations)); compiled by scripts/studies.ts
 server/         game server (Node 24 runs the TypeScript directly)
   index.ts        HTTP API (/api), WebSocket (/ws, /ws/presence), matchmaking, clocks, ratings, SQLite (node:sqlite)
   glicko2.ts      Glicko-2
 scripts/
-  seo.ts          post-build: pre-rendered HTML per page, sitemap.xml, 404.html
+  studies.ts      build: compiles content/studies into public/studies/*.json (fails on any illegal move)
+  seo.ts          post-build: pre-rendered HTML per page and per study chapter, sitemap.xml, 404.html
   setup-engine.sh copies the engine files and downloads the janggi NNUE (checksum verified)
   og-image.mjs    renders public/og.png
   test-openings.ts opening recognition tests (`npm test`)

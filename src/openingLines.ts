@@ -1,6 +1,6 @@
 // Illustrative move orders that reach the reference diagrams of 귀마 대 귀마 후수 포진
 // (DC 장기 마이너 갤러리, 2023-05-30). The positions come from the diagrams; the move orders are ours,
-// checked for legality by scripts/test-openings.ts. Used by the learning pages and the tests.
+// checked for legality by scripts/test-openings.ts. Used by the tests.
 
 export const REF_SETUP = { cho: '상마상마', han: '마상마상' } as const
 
@@ -21,6 +21,3 @@ export const HAN_LINES: { name: string; han: string[] }[] = [
 
 export const interleave = (han: string[]) => han.flatMap((m, i) => [CHO_LINE[i], m])
 
-/** Link that opens the line on the analysis board. */
-export const analysisLink = (han: string[]) =>
-  `/analysis?cho=${encodeURIComponent(REF_SETUP.cho)}&han=${encodeURIComponent(REF_SETUP.han)}&moves=${interleave(han).join(',')}`

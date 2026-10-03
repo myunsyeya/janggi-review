@@ -2,7 +2,6 @@
 // which writes one pre-rendered HTML file per page plus sitemap.xml. New content pages (e.g. openings)
 // only need an entry here.
 import { LICENSES_PAGE, PRIVACY_PAGE } from './docs.ts'
-import { CHOIGOOKSU_PAGE, LEARN_PAGE } from './learnDocs.ts'
 
 export const SITE = {
   name: '초한 장기',
@@ -69,8 +68,6 @@ export const PAGES: PageMeta[] = [
 <p>초한 장기의 레이팅 대국 결과로 매겨지는 Glicko-2 순위예요. 닉네임으로 플레이어를 찾아 승·무·패, 승률, 최근 대국을 볼 수 있고, 대국을 누르면 AI 게임 리뷰로 열립니다.</p>
 <nav><a href="/">온라인 대국</a> · <a href="/analysis">장기 분석판</a></nav>`,
   },
-  LEARN_PAGE,
-  CHOIGOOKSU_PAGE,
   LICENSES_PAGE,
   PRIVACY_PAGE,
 ]

@@ -28,3 +28,6 @@ server/data/
 
 # engine files are copied from node_modules / downloaded by scripts/setup-engine.sh
 public/engine/
+
+# compiled from content/studies by scripts/studies.ts
+public/studies/

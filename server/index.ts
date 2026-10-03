@@ -8,6 +8,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { WebSocket, WebSocketServer } from 'ws'
 import { SETUPS, type Setup, choToMove, loadRules, sanOf, startFen, withBoard } from '../src/janggi.ts'
 import { INITIAL, update, type Rating } from './glicko2.ts'
+import { handleStudies, initStudies, type StudyDeps } from './studies.ts'
 
 const PORT = 8787
 const INITIAL_MS = 10 * 60 * 1000
@@ -61,6 +62,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS games_cho ON games(cho_id, ended);
   CREATE INDEX IF NOT EXISTS games_han ON games(han_id, ended);
 `)
+initStudies(db)
+
 // added later: profile pictures (version = upload time, null = none)
 if (!(db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).some((c) => c.name === "avatar"))
   db.exec("ALTER TABLE users ADD COLUMN avatar INTEGER; ALTER TABLE users ADD COLUMN avatar_type TEXT")
@@ -476,6 +479,8 @@ function gameSummary(row: Record<string, unknown>) {
   }
 }
 
+const studyDeps: StudyDeps = { db, userId: (auth) => userForToken(auth)?.id, json }
+
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? '/', 'http://x')
@@ -553,6 +558,7 @@ const server = http.createServer(async (req, res) => {
       })
       return res.end(fs.readFileSync(file))
     }
+    if (url.pathname.startsWith('/api/study-likes') && handleStudies(studyDeps, req, res, url, auth)) return
     if (url.pathname === "/api/explorer") {
       const fen = url.searchParams.get("fen") ?? ""
       const moves = [...(explorer.get(positionKey(fen)) ?? new Map<string, Tally>())]

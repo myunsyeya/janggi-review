@@ -21,6 +21,9 @@ myunsyeya.com {
 	handle {
 		# one URL per page: /analysis.html -> /analysis, /index.html -> /
 		redir /index.html / 301
+		# the old learning pages became studies
+		redir /learn /study 301
+		redir /openings/* /study 301
 		@html path_regexp html ^/(.+)\.html$
 		redir @html /{re.html.1} 301
 		# /analysis is served from the pre-rendered analysis.html

@@ -137,3 +137,93 @@ console.log('seo: 404.html')
 
 // guard: search engines (Naver in particular) cut descriptions longer than 80 characters
 for (const p of PAGES) if ([...p.description].length > 80) throw new Error(`description over 80 chars: ${p.path}`)
+
+// --- studies: list, topic and chapter pages (research notes compiled by scripts/studies.ts) ------------------
+import type { StudyChapter, StudyNode } from '../src/studyFormat.ts'
+type StudyFile = { id: string; title: string; topics: string[]; description: string; updated: string; chapters: StudyChapter[] }
+const studyDir = path.join(DIST, 'studies')
+const studyIndex: { id: string; title: string; topics: string[]; description: string; updated: string; chapters: { id: string; name: string }[] }[] =
+  fs.existsSync(path.join(studyDir, 'index.json')) ? JSON.parse(fs.readFileSync(path.join(studyDir, 'index.json'), 'utf8')) : []
+const studyUrls: { loc: string; lastmod: string; priority: number }[] = []
+
+function writePage(file: string, page: PageMeta) {
+  const html = template
+    .replace(/<title>[^<]*<\/title>/, `<title>${esc(page.title)}</title>`)
+    .replace('<!--seo-head-->', head(page))
+    .replace('<!--seo-body-->', `<main class="seo-fallback">${page.body.trim()}</main>`)
+  fs.mkdirSync(path.dirname(path.join(DIST, file)), { recursive: true })
+  fs.writeFileSync(path.join(DIST, file), html)
+}
+const short = (s: string) => ([...s].length > 80 ? [...s].slice(0, 79).join('') + '…' : s)
+
+/** Moves and comments as readable HTML: main line with comments as paragraphs, variations nested. */
+function chapterHtml(root: StudyNode) {
+  const label = (ply: number, san: string) => `${Math.ceil(ply / 2)}${ply % 2 ? '.' : '...'} ${san}`
+  const line = (start: StudyNode, ply: number): string => {
+    let out = ''
+    let n: StudyNode | undefined = start
+    let p = ply
+    while (n) {
+      out += ` <b>${esc(label(p, n.san ?? ''))}${esc((n.glyphs ?? []).join(''))}</b>`
+      if (n.comment) out += ` ${esc(n.comment)}`
+      const alts: StudyNode[] = n.ch.slice(1)
+      if (alts.length) out += alts.map((a) => ` (${line(a, p + 1)})`).join('')
+      n = n.ch[0]
+      p++
+    }
+    return out
+  }
+  return (root.comment ? `<p>${esc(root.comment)}</p>` : '') + root.ch.map((c, i) => `<p>${i ? '변화: ' : ''}${line(c, 1)}</p>`).join('')
+}
+
+if (studyIndex.length) {
+  const listBody = (title: string, items: typeof studyIndex) =>
+    `<h1>${esc(title)}</h1><ul>${items
+      .map((s) => `<li><a href="/study/${s.id}">${esc(s.title)}</a> — ${esc(s.description)}<ol>${s.chapters.map((c) => `<li>${esc(c.name)}</li>`).join('')}</ol></li>`)
+      .join('')}</ul>`
+  writePage('study.html', {
+    path: '/study',
+    title: '장기 연구 — 포진과 변화 | 초한 장기',
+    description: '귀마 대 귀마부터 시작하는 장기 포진 연구 노트. 변화도와 해설을 판 위에서 한 수씩 따라가요.',
+    changefreq: 'weekly',
+    priority: 0.8,
+    body: listBody('장기 연구', studyIndex),
+  })
+  studyUrls.push({ loc: '/study', lastmod: studyIndex.map((s) => s.updated).sort().at(-1)!, priority: 0.8 })
+  for (const topic of new Set(studyIndex.flatMap((s) => s.topics))) {
+    const items = studyIndex.filter((s) => s.topics.includes(topic))
+    const p = `/study/topic/${encodeURIComponent(topic)}`
+    writePage(`study/topic/${topic}.html`, {
+      path: p,
+      title: `${topic} — 장기 연구 | 초한 장기`,
+      description: short(`${topic} 주제의 장기 연구 ${items.length}개: ${items.map((s) => s.title).join(', ')}`),
+      changefreq: 'weekly',
+      priority: 0.5,
+      body: listBody(topic, items),
+    })
+    studyUrls.push({ loc: p, lastmod: items.map((s) => s.updated).sort().at(-1)!, priority: 0.5 })
+  }
+  for (const meta of studyIndex) {
+    const study = JSON.parse(fs.readFileSync(path.join(studyDir, `${meta.id}.json`), 'utf8')) as StudyFile
+    study.chapters.forEach((ch, i) => {
+      const p = i === 0 ? `/study/${study.id}` : `/study/${study.id}/${ch.id}`
+      const nav = `<nav>${study.chapters.map((c, j) => `<a href="/study/${study.id}${j ? '/' + c.id : ''}">${j + 1}. ${esc(c.name)}</a>`).join(' · ')}</nav>`
+      writePage(i === 0 ? `study/${study.id}.html` : `study/${study.id}/${ch.id}.html`, {
+        path: p,
+        title: `${study.title}: ${ch.name} | 초한 장기`,
+        description: short(i === 0 ? study.description : `${study.title} — ${ch.name}. ${study.description}`),
+        changefreq: 'monthly',
+        priority: 0.7,
+        body: `<h1>${esc(study.title)}: ${esc(ch.name)}</h1>${chapterHtml(ch.root)}${nav}`,
+      })
+      studyUrls.push({ loc: p, lastmod: study.updated, priority: 0.7 })
+    })
+  }
+  // append the study URLs to the sitemap
+  const extra = studyUrls
+    .map((u) => `  <url>\n    <loc>${SITE.url}${u.loc}</loc>\n    <lastmod>${new Date(u.lastmod).toISOString()}</lastmod>\n    <priority>${u.priority.toFixed(1)}</priority>\n  </url>`)
+    .join('\n')
+  const sm = path.join(DIST, 'sitemap.xml')
+  fs.writeFileSync(sm, fs.readFileSync(sm, 'utf8').replace('</urlset>', `${extra}\n</urlset>`))
+  console.log(`seo: ${studyUrls.length} study pages`)
+}
