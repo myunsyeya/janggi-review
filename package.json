@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "setup-engine": "./scripts/setup-engine.sh",
     "server": "node server/index.ts",
-    "test": "node scripts/test-openings.ts"
+    "test": "node scripts/test-openings.ts",
+    "explore": "node scripts/explore.ts"
   },
   "dependencies": {
     "fairy-stockfish-nnue.wasm": "^1.1.12",
