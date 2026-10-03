@@ -375,9 +375,14 @@ button {
   color: #ffffffcc;
   box-shadow: 0 3px 0 #1d1c1a;
 }
-.controls button:hover {
+.controls button:hover:not(:disabled) {
   background: var(--btn-hover);
   color: #fff;
+}
+.controls button:disabled {
+  opacity: 0.35;
+  cursor: default;
+  box-shadow: none;
 }
 
 .actions {
@@ -2374,6 +2379,12 @@ button {
   text-align: left;
   font-weight: 600;
   font-size: 14px;
+}
+.study-next-kind {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.75;
 }
 .study-next button.main {
   background: #3893e8;

@@ -50,14 +50,17 @@ export default function StudyPage({
 
   const node = nodes[cur]
 
-  // stepping one move forward plays that move's sound, as on the analysis board
+  // moving forward along the line (one move or a jump ahead) plays the sound of the move arrived at; going back is silent
   const lastSoundAt = useRef(0)
   useEffect(() => {
     const from = lastSoundAt.current
     lastSoundAt.current = cur
     const n = nodes[cur]
-    if (!active || !n || n.parent !== from || n.parent === null) return
-    const capture = !isPass(n.uci) && parsePieces(nodes[from].fen).has(parseUci(n.uci).to)
+    if (!active || !n || n.parent === null || cur === from) return
+    let a: ViewNode | undefined = n
+    while (a && a.id !== from) a = a.parent === null ? undefined : nodes[a.parent]
+    if (!a) return
+    const capture = !isPass(n.uci) && parsePieces(nodes[n.parent].fen).has(parseUci(n.uci).to)
     playSound(moveSound({ capture, check: withBoard(n.fen, (b) => b.isCheck()), over: false }))
   }, [cur]) // eslint-disable-line react-hooks/exhaustive-deps
   const go = (to: number | undefined) => to !== undefined && nodes[to] && setCur(to)
@@ -154,10 +157,11 @@ export default function StudyPage({
       <section className="study-side">
         <OpeningBar opening={opening} />
         <StudyTree nodes={nodes} cur={cur} onSelect={setCur} />
-        {node.children.length > 0 && (
+        {node.children.length > 1 && (
           <div className="study-next">
-            {node.children.map((c) => (
-              <button key={c} onClick={() => setCur(c)} className={c === node.children[0] ? 'main' : ''}>
+            {node.children.map((c, i) => (
+              <button key={c} onClick={() => setCur(c)} className={i === 0 ? 'main' : ''}>
+                <span className="study-next-kind">{i > 0 ? '변화' : onMainLine(nodes, node) ? '주 수순' : '이어서'}</span>
                 {moveLabel(nodes[c])}
                 <Glyph g={nodes[c].glyphs} />
               </button>
@@ -165,16 +169,16 @@ export default function StudyPage({
           </div>
         )}
         <footer className="controls study-controls">
-          <button title="처음 (↑)" onClick={() => go(0)}>
+          <button title="처음 (↑)" disabled={node.parent === null} onClick={() => go(0)}>
             <IconFirst />
           </button>
-          <button title="이전 (←)" onClick={() => go(node.parent ?? undefined)}>
+          <button title="이전 (←)" disabled={node.parent === null} onClick={() => go(node.parent ?? undefined)}>
             <IconPrev />
           </button>
-          <button title="다음 (→)" onClick={() => go(node.children[0])}>
+          <button title="다음 (→)" disabled={!node.children.length} onClick={() => go(node.children[0])}>
             <IconNext />
           </button>
-          <button title="끝 (↓)" onClick={() => go(lineEnd(node.id))}>
+          <button title="이 줄의 끝 (↓)" disabled={!node.children.length} onClick={() => go(lineEnd(node.id))}>
             <IconLast />
           </button>
           <button title="판 뒤집기 (f를 누르는 동안)" onClick={() => setFlipped((f) => !f)}>
@@ -184,6 +188,12 @@ export default function StudyPage({
       </section>
     </div>
   )
+}
+
+/** true if every move up to this node is the first choice of its parent */
+function onMainLine(nodes: ViewNode[], n: ViewNode) {
+  for (let c = n; c.parent !== null; c = nodes[c.parent]) if (nodes[c.parent].children[0] !== c.id) return false
+  return true
 }
 
 function Glyph({ g }: { g?: string[] }) {
