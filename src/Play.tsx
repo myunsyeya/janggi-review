@@ -3,7 +3,7 @@ import { nameOpening, usePositionNames } from './openingNames'
 import Board from './Board'
 import MoveList from './MoveList'
 import type { GameImport } from './Analysis'
-import { MAX_PLIES, type Setup, isPass, legalNoRepeat, material, pointsResult, positionsSeen, moveRaw, premoveTargets, resultLabel, parsePieces, parseUci, replay, startFen, withBoard } from "./janggi"
+import { MAX_PLIES, type Setup, isPass, legalMoves, material, pointsResult, moveRaw, premoveTargets, resultLabel, parsePieces, parseUci, replay, startFen, withBoard } from "./janggi"
 import { moveSound, playSound } from "./sound"
 import { Conn, api, saveToken, savedToken, type GameSummary, type GameView, type PublicUser, type Side } from './net'
 import { treeFromMoves } from "./tree"
@@ -131,7 +131,7 @@ export default function Play({
   const legal = useMemo(() => {
     if (!rulesReady || !game || game.phase !== 'play' || !atLive || game.turn !== mySide) return []
     // the repetition rule (동일 수 3회 금지; the server checks the same)
-    return legalNoRepeat(fen, positionsSeen(game.startFen!, game.moves))
+    return legalMoves(game.startFen!, game.moves)
   }, [rulesReady, game, atLive, mySide, fen])
 
   // premoves (chess.com style): on the opponent's turn moves are queued, each one from the position

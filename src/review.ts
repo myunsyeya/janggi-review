@@ -112,17 +112,19 @@ export interface PrevMove {
   review: MoveReview | null
 }
 
-/** Classifies one move; `prev` is the opponent's move just before it, if any. */
+/**
+ * Classifies one move from the evaluations of the positions before (`eb`) and after it (`ea`); `prev` is the
+ * opponent's move just before it, if any. Evaluations are stored by engine key (the FEN plus recent moves), so the
+ * caller looks them up.
+ */
 export function reviewMove(
   before: string,
   uci: string,
-  after: string,
   prev: PrevMove | null,
-  evals: Record<string, PosEval>,
+  eb: PosEval | undefined,
+  ea: PosEval | undefined,
 ): MoveReview | null {
   {
-    const eb = evals[before]
-    const ea = evals[after]
     if (!eb || !ea) return null
     const cho = choToMove(before)
     const winBefore = posWin(eb)
@@ -170,16 +172,18 @@ export function reviewMove(
   }
 }
 
+/** A whole game: `evals` by engine key, `keys` the keys of the start and of the position after each move */
 export function reviewGame(
   start: string,
   plies: { uci: string; fen: string }[],
   evals: Record<string, PosEval>,
+  keys: string[],
 ): (MoveReview | null)[] {
   const out: (MoveReview | null)[] = []
   plies.forEach((p, i) => {
     const before = i === 0 ? start : plies[i - 1].fen
     const prev = i === 0 ? null : { uci: plies[i - 1].uci, before: i > 1 ? plies[i - 2].fen : start, review: out[i - 1] }
-    out.push(reviewMove(before, p.uci, p.fen, prev, evals))
+    out.push(reviewMove(before, p.uci, prev, evals[keys[i]], evals[keys[i + 1]]))
   })
   return out
 }

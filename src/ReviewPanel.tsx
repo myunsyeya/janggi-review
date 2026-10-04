@@ -29,7 +29,10 @@ export default function ReviewPanel(p: {
   onPickBest: (ucis: string[]) => void
   onHoverBest?: (i: number | null, el?: HTMLElement) => void
   reviews: (MoveReview | null)[]
-  evals: Record<string, PosEval>
+  /** evaluations of the start and of the position after each main-line move */
+  posEvals: (PosEval | undefined)[]
+  /** evaluation of the position after the move shown */
+  moveEval?: PosEval
   onSelect: (i: number) => void
 }) {
   const [showLine, setShowLine] = useState(false)
@@ -63,7 +66,7 @@ export default function ReviewPanel(p: {
   if (r && p.move) {
     const ply = p.move
     const info = CLASS_INFO[r.cls]
-    const score = scoreAfter(ply.fen, p.evals[ply.fen])
+    const score = scoreAfter(ply.fen, p.moveEval)
     const bestSan = !r.isBest && r.best ? lineSan(p.prevFen, [r.best])[0] : null
     coach = (
       <>
@@ -95,7 +98,7 @@ export default function ReviewPanel(p: {
   return (
     <section className="review">
       <Coach>{coach}</Coach>
-      <EvalGraph start={p.start} plies={p.plies} evals={p.evals} reviews={p.reviews} cur={p.cur} onSelect={p.onSelect} />
+      <EvalGraph start={p.start} plies={p.plies} posEvals={p.posEvals} reviews={p.reviews} cur={p.cur} onSelect={p.onSelect} />
       {!p.move && (
       <>
       <div className="accuracy">
@@ -139,13 +142,13 @@ const GRAPH_MARKS = new Set(['brilliant', 'great', 'miss', 'mistake', 'blunder']
 function EvalGraph(p: {
   start: string
   plies: Ply[]
-  evals: Record<string, PosEval>
+  posEvals: (PosEval | undefined)[]
   reviews: (MoveReview | null)[]
   cur: number
   onSelect: (i: number) => void
 }) {
   const fens = [p.start, ...p.plies.map((x) => x.fen)]
-  const ws = fens.map((f) => (p.evals[f] ? choWin(f, p.evals[f]) : 0.5))
+  const ws = fens.map((f, i) => (p.posEvals[i] ? choWin(f, p.posEvals[i]!) : 0.5))
   const n = Math.max(1, ws.length - 1)
   const pts = ws.map((w, i) => `${((i / n) * 100).toFixed(3)},${(100 - w * 100).toFixed(3)}`)
   const area = `M0,100 L${pts.join(' L')} L100,100 Z`

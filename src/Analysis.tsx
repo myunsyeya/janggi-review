@@ -19,8 +19,12 @@ import {
   choToMove,
   formatScore,
   isPass,
-  countPosition,
-  legalNoRepeat,
+  ENGINE_HISTORY,
+  engineKey,
+  gameEnd,
+  gameKeys,
+  keyResult,
+  legalMoves,
   pointsEnding,
   lineSan,
   material,
@@ -108,27 +112,32 @@ export default function Analysis({
   const fen = node.fen
   const lastMove = node.uci || undefined
 
+  // the line to this position, as a game: the rules (repetition, points endings) depend on the moves before it
   const position = useMemo(() => {
     if (!rulesReady) return null
-    // decided on points as in a game (two passes, 10 points, 200 moves: a FEN does not know the moves before it)
-    const path = pathTo(tree, cur)
-    const line = path.map((id) => tree.nodes[id].uci)
-    const points = line.length ? pointsEnding(line, fen) : null
-    if (points) return { legal: [], over: true, result: points.result as string, reason: points.reason }
-    // the repetition rule (동일 수 3회 금지) applies along this line, as in a game
-    const seen = new Map<string, number>()
-    for (const f of [start, ...path.map((id) => tree.nodes[id].fen)]) countPosition(seen, f)
-    const legal = legalNoRepeat(fen, seen)
-    return withBoard(fen, (b) => {
-      const mated = !b.isGameOver() && !legal.length // every move left would repeat
-      return {
-        legal,
-        over: b.isGameOver() || mated,
-        result: mated ? (choToMove(fen) ? '0-1' : '1-0') : b.result(),
-        reason: mated ? '둘 수 없음 (반복 금지)' : (undefined as string | undefined),
+    const line = pathTo(tree, cur).map((id) => tree.nodes[id].uci)
+    const end = gameEnd(start, line)
+    if (end) return { legal: [], over: true, result: end.result as string, reason: end.reason as string | undefined }
+    return { legal: legalMoves(start, line), over: false, result: '*', reason: undefined as string | undefined }
+  }, [rulesReady, tree, cur, start])
+
+  // engine key of every position in the tree: its FEN plus the recent moves (see engineKey); evaluations are kept
+  // under it and the engine is given it, so it knows the repetition rules
+  const keyOf = useMemo(() => {
+    const keys = new Map<number, string>()
+    if (!rulesReady) return keys
+    for (const node of Object.values(tree.nodes)) {
+      const recent: { uci: string; fen: string }[] = []
+      let n = node
+      while (n.parent !== null && recent.length < ENGINE_HISTORY) {
+        recent.unshift({ uci: n.uci, fen: n.fen })
+        n = tree.nodes[n.parent]
       }
-    })
-  }, [fen, rulesReady, tree, cur, start])
+      keys.set(node.id, engineKey(n.fen, recent))
+    }
+    return keys
+  }, [tree, rulesReady])
+  const curKey = keyOf.get(cur) ?? fen
 
   // re-analyse whenever the shown position changes
   const pendingUi = useRef<EngineAnalysis | null>(null)
@@ -141,7 +150,7 @@ export default function Analysis({
       return
     }
     let raf = 0
-    engine.analyze(fen, (a) => {
+    engine.analyze(curKey, (a) => {
       pendingUi.current = a
       if (!raf)
         raf = requestAnimationFrame(() => {
@@ -150,9 +159,9 @@ export default function Analysis({
         })
     })
     return () => cancelAnimationFrame(raf)
-  }, [engine, engineOn, fen, position, reviewing])
+  }, [engine, engineOn, curKey, position, reviewing])
 
-  const live = analysis && analysis.fen === fen ? analysis : null
+  const live = analysis && analysis.fen === curKey ? analysis : null
 
   const play = useCallback(
     (uci: string) => {
@@ -245,21 +254,22 @@ export default function Analysis({
   const plies = useMemo(() => main.map((id) => tree.nodes[id]), [main, tree])
 
   const reviewToken = useRef(0)
+  const mainKeys = useMemo(() => [ROOT, ...main].map((id) => keyOf.get(id)!), [main, keyOf])
   const startReview = useCallback(
-    async (target: { fen: string }[] = plies, from: string = start) => {
+    async (target: string[] = mainKeys) => {
       const eng = await getEngine()
       const token = ++reviewToken.current
-      const fens = [...new Set([from, ...target.map((p) => p.fen)])]
+      const keys = [...new Set(target)]
       let have = evals
-      const todo = fens.filter((f) => !have[f])
-      setReviewRun({ done: fens.length - todo.length, total: fens.length })
+      const todo = keys.filter((k) => !have[k])
+      setReviewRun({ done: keys.length - todo.length, total: keys.length })
       for (const f of todo) {
         if (reviewToken.current !== token) return
-        const result = withBoard(f, (b) => (b.isGameOver() ? b.result() : null))
+        const over = keyResult(f)
         let e: PosEval
-        if (result) {
-          const cho = result === '1-0' ? 1 : result === '0-1' ? 0 : 0.5
-          e = { lines: [], terminal: choToMove(f) ? cho : 1 - cho }
+        if (over) {
+          const cho = over.result === '1-0' ? 1 : over.result === '0-1' ? 0 : 0.5
+          e = { lines: [], terminal: choToMove(over.fen) ? cho : 1 - cho }
         } else {
           e = { lines: (await evaluate(eng, f, REVIEW_DEPTH, REVIEW_MULTIPV)).lines }
         }
@@ -269,14 +279,14 @@ export default function Analysis({
       }
       setReviewRun(null)
     },
-    [plies, start, evals],
+    [mainKeys, evals],
   )
 
   const runFullReview = useCallback(
-    async (target?: { fen: string }[], from?: string) => {
+    async (target?: string[]) => {
       setReviewOn(true)
       setFullRun(true)
-      await startReview(target, from)
+      await startReview(target)
       setFullRun(false)
     },
     [startReview],
@@ -300,7 +310,7 @@ export default function Analysis({
       setTab('review')
       if (load.record) fetchServerReview(`/records/${load.record.id}/analysis`, load)
       else if (load.gameId) fetchServerReview(`/games/${load.gameId}/analysis`, load)
-      else runFullReview(load.moves, load.startFen)
+      else runFullReview(gameKeys(load.startFen, load.moves.map((m) => m.uci)))
     }
   }, [load, rulesReady, runFullReview]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -319,7 +329,7 @@ export default function Analysis({
       } catch {
         if (serverPoll.current !== token) return
         setFullRun(false)
-        return runFullReview(game.moves, game.startFen)
+        return runFullReview(gameKeys(game.startFen, game.moves.map((m) => m.uci)))
       }
       if (serverPoll.current !== token) return
       setEvals((e) => ({ ...e, ...r.evals }))
@@ -345,7 +355,7 @@ export default function Analysis({
         n.parent === null ? null : { uci: n.uci, before: tree.nodes[n.parent].fen, review: m.get(id) ?? null }
       for (const c of n.children) {
         const line = [...ucis, tree.nodes[c].uci]
-        let r = reviewMove(n.fen, tree.nodes[c].uci, tree.nodes[c].fen, prev, evals)
+        let r = reviewMove(n.fen, tree.nodes[c].uci, prev, evals[keyOf.get(id)!], evals[keyOf.get(c)!])
         // theory (이론에 있는 수): a move that builds the recognized formation, or a position from the study notes,
         // unless the engine calls it a mistake
         const inTheory = () => theory.has(positionKey(tree.nodes[c].fen)) || classifyOpening(start, line).book.has(line.length - 1)
@@ -357,7 +367,7 @@ export default function Analysis({
     }
     walk(ROOT, [], true)
     return m
-  }, [rulesReady, tree, evals, start, theory])
+  }, [rulesReady, tree, evals, start, theory, keyOf])
   const reviews = useMemo(() => main.map((id) => treeReviews.get(id) ?? null), [main, treeReviews])
   const reviewed = plies.length > 0 && reviews.every(Boolean)
   const classes = useMemo(() => new Map([...treeReviews].map(([id, r]) => [id, r.cls])), [treeReviews])
@@ -388,8 +398,9 @@ export default function Analysis({
   // In the review tab, a move off the reviewed line gets evaluated right away (it and the position before it).
   useEffect(() => {
     if (tab !== "review" || !reviewOn || fullRun || reviewing || cur === ROOT) return
-    const need = [...new Set([prevFen, fen])].filter((f) => !evals[f])
-    if (need.length) startReview(need.map((f) => ({ fen: f })), need[0])
+    const prevKey = node.parent !== null ? keyOf.get(node.parent)! : keyOf.get(ROOT)!
+    const need = [...new Set([prevKey, curKey])].filter((k) => !evals[k])
+    if (need.length) startReview(need)
   }, [tab, reviewOn, fullRun, reviewing, cur, prevFen, fen, evals, startReview])
 
   // result shown after the main line: the loaded game's result, or the rules' verdict if the line ends the game
@@ -411,7 +422,7 @@ export default function Analysis({
   const mat = useMemo(() => material(fen), [fen])
   const matFor = (s: "cho" | "han") => ({ ...mat[s], lead: mat[s].score - mat[s === "cho" ? "han" : "cho"].score })
 
-  const stored = evals[fen]
+  const stored = evals[curKey]
   const storedScore = stored
     ? stored.terminal !== undefined
       ? { mate: choWin(fen, stored) > 0.5 ? 1 : -1 }
@@ -517,7 +528,8 @@ export default function Analysis({
             onHoverBest={node.parent !== null ? hoverLine(tree.nodes[node.parent].fen, curReview?.bestLine ?? []) : undefined}
             onPickBest={(ucis) => node.parent !== null && playLine(node.parent, ucis)}
             reviews={reviews}
-            evals={evals}
+            posEvals={mainKeys.map((k) => evals[k])}
+            moveEval={evals[curKey]}
             onSelect={(i) => setCur(i === 0 ? ROOT : main[i - 1])}
           />
         )}

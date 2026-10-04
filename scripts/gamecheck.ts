@@ -4,7 +4,7 @@
 //   node scripts/gamecheck.ts <cho setup> <han setup> "<uci moves>" [depth=18]
 // A move's loss = best value of the position before it − value after it, both for the side that moved.
 // Losses under 0.4 wobble at this depth: check every turning point again with explore.ts before writing it.
-import { lineSan, startFen, withBoard } from '../src/janggi.ts'
+import { gameKeys, keyResult, lineSan, startFen, withBoard } from '../src/janggi.ts'
 import { classifyOpening } from '../src/openings.ts'
 import { loadRecords } from './requestLib.ts'
 import { openEngine, type Line } from './sf.ts'
@@ -41,14 +41,15 @@ const sans = lineSan(start, moves)
 const CAP = 30
 const value = (l: Line | undefined) => (!l ? -CAP : l.kind === 'mate' ? Math.sign(l.v || -1) * CAP : Math.max(-CAP, Math.min(CAP, l.v / 100)))
 const results: { best: Line | undefined; v: number }[] = []
-for (const fen of fens) {
-  const over = withBoard(fen, (b) => (b.isGameOver() ? b.result() : null))
+const keys = gameKeys(start, moves) // FEN plus recent moves, so the engine knows the repetition rules
+for (const [i, fen] of fens.entries()) {
+  const over = keyResult(keys[i])?.result
   if (over) {
     const toMove = fen.split(' ')[1] === 'w' ? '1-0' : '0-1'
     results.push({ best: undefined, v: over === '1/2-1/2' ? 0 : over === toMove ? CAP : -CAP })
     continue
   }
-  const [best] = await search(fen, depth)
+  const [best] = await search(keys[i], depth)
   results.push({ best, v: value(best) })
 }
 

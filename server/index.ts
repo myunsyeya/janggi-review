@@ -6,7 +6,7 @@ import http from 'node:http'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { WebSocket, WebSocketServer } from 'ws'
-import { SETUPS, type Setup, choToMove, legalNoRepeat, loadRules, countPosition, pointsEnding, positionsSeen, sanOf, startFen, withBoard } from '../src/janggi.ts'
+import { SETUPS, type Setup, choToMove, gameEnd, legalMoves, loadRules, sanOf, startFen, withBoard } from '../src/janggi.ts'
 import { INITIAL, update, type Rating } from './glicko2.ts'
 import { handleStudies, initStudies, type StudyDeps } from './studies.ts'
 import { clearExtra, handleUserStudies, initUserStudies, type UserStudyDeps } from './userStudies.ts'
@@ -298,7 +298,7 @@ function chooseSetup(g: Game, side: Side, setup: Setup) {
     g.phase = 'play'
     g.deadline = undefined
     g.startFen = g.fen = startFen(g.setups.cho!, g.setups.han!)
-    analyseLive(g.fen)
+    analyseLive(g.startFen!, [])
     g.turnStart = Date.now()
   }
   schedule(g)
@@ -313,37 +313,19 @@ function playMove(g: Game, side: Side, uci: string) {
     g.clock[side] = 0
     return finish(g, side === 'cho' ? '0-1' : '1-0', '시간 초과')
   }
-  const seen = positionsSeen(g.startFen!, g.moves)
-  if (!legalNoRepeat(g.fen!, seen).includes(uci)) return // includes the repetition rule (동일 수 3회 금지)
-  const res = withBoard(g.fen!, (b) => {
-    const san = sanOf(b, uci)
-    b.push(uci)
-    const over = b.isGameOver()
-    return {
-      san,
-      fen: b.fen(),
-      over,
-      result: over ? (b.result() as Game['result']) : undefined,
-      mate: over && b.numberLegalMoves() === 0 && b.isCheck(),
-      bikjang: b.isBikjang(),
-    }
-  })
-  if (!res) return
+  // legal moves come from the whole game: the repetition rules need its history
+  if (!legalMoves(g.startFen!, g.moves).includes(uci)) return
+  const san = withBoard(g.fen!, (b) => sanOf(b, uci))
   g.clock[side] = left + INCREMENT_MS
   g.turnStart = now
   g.moves.push(uci)
-  g.sans.push(res.san)
-  g.fen = res.fen
-  analyseLive(res.fen) // review prepared in the background; never served before the game ends
+  g.sans.push(san)
+  g.fen = withBoard(g.fen!, (b) => (b.push(uci), b.fen()))
+  analyseLive(g.startFen!, g.moves) // review prepared in the background; never served before the game ends
   if (g.drawOffer === other(side)) g.drawOffer = null
-  if (res.over) return finish(g, res.result!, res.mate ? '외통' : res.bikjang ? '빅장' : '규칙')
-  // decided on points: two passes in a row, a side down to 10 points, or 200 moves (see pointsEnding)
-  const points = pointsEnding(g.moves, res.fen)
-  if (points) return finish(g, points.result, points.reason)
-  // the repetition rule can leave the side to move with nothing to play (in check, every escape would be a third
-  // repetition): like being mated
-  countPosition(seen, res.fen)
-  if (!legalNoRepeat(res.fen, seen).length) return finish(g, side === 'cho' ? '1-0' : '0-1', '둘 수 없음 (반복 금지)')
+  // 외통, points (two passes, 10 points, 200 moves), repetition (see gameEnd)
+  const end = gameEnd(g.startFen!, g.moves)
+  if (end) return finish(g, end.result, end.reason)
   schedule(g)
   broadcast(g)
 }

@@ -296,55 +296,6 @@ export function pointsResult(fen: string): { result: GameResult; score: string }
  */
 export const passedTwice = (ucis: string[]) => ucis.length >= 2 && isPass(ucis[ucis.length - 1]) && isPass(ucis[ucis.length - 2])
 
-// --- repetition (동일 수 반복 금지) ----------------------------------------------------------
-// "동일한 수를 3회 이상 반복할 수 없다. 단, 기물의 총 점수가 각각 30점 미만일 때에는 동일 수(반복장군 포함)를
-// 반복할 수 있다." (피망·한게임 장기 규칙). A move that would bring a position (board and side to move) about for
-// the third time is not allowed, the way a move may not leave one's own 궁 in check — unless both sides have fewer
-// than REPEAT_FREE_BELOW points on the board (덤 not counted). The rules engine cannot see this from a FEN, so it is
-// checked here. 한수쉼 is exempt: two passes in a row end the game on points instead.
-export const REPEAT_LIMIT = 3
-export const REPEAT_FREE_BELOW = 30
-
-/** Board and side to move: what counts as "the same position" */
-export const positionOf = (fen: string) => fen.split(' ').slice(0, 2).join(' ')
-
-/** How often each position has come up in a game so far (the start and the position after every move) */
-export function positionsSeen(start: string, ucis: string[]): Map<string, number> {
-  return withBoard(start, (b) => {
-    const seen = new Map([[positionOf(start), 1]])
-    for (const u of ucis) {
-      b.push(u)
-      countPosition(seen, b.fen())
-    }
-    return seen
-  })
-}
-export const countPosition = (seen: Map<string, number>, fen: string) => seen.set(positionOf(fen), (seen.get(positionOf(fen)) ?? 0) + 1)
-
-/** Both sides below REPEAT_FREE_BELOW points: repetition is allowed (MAX_PLIES still ends the game) */
-function repeatFree(fen: string) {
-  const m = material(fen)
-  return m.cho.score < REPEAT_FREE_BELOW && m.han.score - KOMI < REPEAT_FREE_BELOW
-}
-
-/** Legal moves of a position, leaving out the ones that would bring a position about for the REPEAT_LIMIT-th time */
-export function legalNoRepeat(fen: string, seen: Map<string, number>): string[] {
-  const free = repeatFree(fen)
-  return withBoard(fen, (b) =>
-    b
-      .legalMoves()
-      .split(' ')
-      .filter(Boolean)
-      .filter((u) => {
-        if (free || isPass(u)) return true
-        b.push(u)
-        const times = seen.get(positionOf(b.fen())) ?? 0
-        b.pop()
-        return times < REPEAT_LIMIT - 1
-      }),
-  )
-}
-
 /**
  * Whether the move just played ends the game on points (카카오 장기 rules), and why: both sides passed in a row,
  * a side is down to LOW_POINTS points or fewer (덤 not counted), or MAX_PLIES moves were played (the game ends right
@@ -363,3 +314,115 @@ export function pointsEnding(line: string[], after: string): { result: GameResul
   const p = pointsResult(after)
   return { result: p.result, reason: `${why} · 점수 ${p.score}` }
 }
+
+// --- the whole game: repetition and the end of a game ------------------------------------------
+// The repetition rules are the rules engine's (janggimodern, made to match 카카오 장기): moving a piece back and forth
+// to repeat the same move a third time loses, so does checking over and over, and a position that comes up a fourth
+// time is decided on points. The engine can only judge them on a board that has the game's moves, so these functions
+// replay the game from its start. A move that would lose on the spot this way is simply not offered, the way a move
+// may not leave one's own 궁 in check. Points endings that the engine does not have (two passes, 10 points, 200
+// moves) are in pointsEnding above.
+
+/** Board and side to move: what counts as "the same position" */
+export const positionOf = (fen: string) => fen.split(' ').slice(0, 2).join(' ')
+
+/** Runs fn on a board that has played the whole game, so the rules engine sees its history */
+export function withGame<T>(start: string, ucis: string[], fn: (b: Board) => T): T {
+  return withBoard(start, (b) => {
+    for (const u of ucis) b.push(u)
+    return fn(b)
+  })
+}
+
+/** On a board with history: the move just played loses by the repetition rules (not a position's fourth time) */
+function repetitionLoss(b: Board, seen: Map<string, number>) {
+  if (b.isGameOver() || !b.isGameOver(true)) return false
+  if ((seen.get(positionOf(b.fen())) ?? 0) >= 3) return false // a fourth time: decided on points, not lost
+  const moverCho = !choToMove(b.fen())
+  return b.result(true) === (moverCho ? '0-1' : '1-0')
+}
+
+function positionCounts(start: string, ucis: string[]) {
+  const seen = new Map<string, number>()
+  replay(start, ucis).reduce((m, p) => m.set(positionOf(p.fen), (m.get(positionOf(p.fen)) ?? 0) + 1), seen.set(positionOf(start), 1))
+  return seen
+}
+
+/** Legal moves after the game's moves, without the ones that would lose on the spot by the repetition rules */
+export function legalMoves(start: string, ucis: string[]): string[] {
+  const seen = positionCounts(start, ucis)
+  return withGame(start, ucis, (b) =>
+    b
+      .legalMoves()
+      .split(' ')
+      .filter(Boolean)
+      .filter((u) => {
+        b.push(u)
+        const lost = repetitionLoss(b, seen)
+        b.pop()
+        return !lost
+      }),
+  )
+}
+
+/** Whether the game is over after its last move, how and with what result */
+export function gameEnd(start: string, ucis: string[]): { result: GameResult; reason: string } | null {
+  if (!ucis.length) return null
+  const seen = positionCounts(start, ucis)
+  return withGame(start, ucis, (b) => {
+    const fen = b.fen()
+    if (b.isGameOver() && b.isCheck() && b.numberLegalMoves() === 0) return { result: b.result() as GameResult, reason: '외통' }
+    const points = pointsEnding(ucis, fen)
+    if (points) return points
+    if (b.isGameOver()) return { result: b.result() as GameResult, reason: '규칙' }
+    if (b.isGameOver(true)) {
+      const fourth = (seen.get(positionOf(fen)) ?? 0) >= 4
+      return { result: b.result(true) as GameResult, reason: fourth ? `동형 반복 · 점수 ${pointsResult(fen).score}` : '반복 수' }
+    }
+    // every move left would lose by repetition (in check, every escape repeats): like being mated
+    if (!legalMoves(start, ucis).length) return { result: choToMove(fen) ? '0-1' : '1-0', reason: '둘 수 없음 (반복)' }
+    return null
+  })
+}
+
+/**
+ * What the engine is told about a position, and the key its evaluation is stored under: the position up to
+ * ENGINE_HISTORY moves back (or right after the last capture, as no position before a capture can come back) and the
+ * moves since, as in "position fen <key>". With no moves since, it is just the FEN.
+ * `path` is the moves that led to the position (at least the last ENGINE_HISTORY), each with the position after it.
+ */
+export const ENGINE_HISTORY = 12
+export function engineKey(start: string, path: { uci: string; fen: string }[]): string {
+  let j = path.length
+  while (j > 0 && path.length - j < ENGINE_HISTORY) {
+    const m = path[j - 1]
+    const before = j > 1 ? path[j - 2].fen : start
+    if (!isPass(m.uci) && parsePieces(before).has(parseUci(m.uci).to)) break
+    j--
+  }
+  const from = j > 0 ? path[j - 1].fen : start
+  const moves = path.slice(j).map((m) => m.uci)
+  return moves.length ? `${from} moves ${moves.join(' ')}` : from
+}
+
+/** The position a key stands for */
+export const keyFen = (key: string) => {
+  const [fen, moves] = key.split(' moves ')
+  return moves ? replay(fen, moves.split(' ')).at(-1)!.fen : fen
+}
+
+/** Keys of every position of a game: the start and the position after each move */
+export function gameKeys(start: string, ucis: string[]): string[] {
+  const path = replay(start, ucis)
+  return [start, ...path.map((_, i) => engineKey(start, path.slice(0, i + 1)))]
+}
+
+/** A key whose position ends the game on the board (외통 and such): its result and FEN */
+export function keyResult(key: string): { result: GameResult; fen: string } | null {
+  const [from, moves] = key.split(' moves ')
+  return withBoard(from, (b) => {
+    for (const m of moves?.split(' ') ?? []) b.push(m)
+    return b.isGameOver() ? { result: b.result() as GameResult, fen: b.fen() } : null
+  })
+}
+

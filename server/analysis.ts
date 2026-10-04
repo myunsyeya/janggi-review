@@ -1,5 +1,7 @@
 // Server-side game review: one Fairy-Stockfish (WASM) instance works through a queue of positions and stores
-// each result in position_evals, keyed by FEN, so a position is analysed once for every game that reaches it.
+// each result in position_evals, so a position is analysed once for every game that reaches it the same way.
+// Positions are keyed by engineKey (src/janggi.ts): the FEN plus the moves since the last capture (at most a few),
+// which the engine is given too, so it knows the repetition rules; the column is still called fen.
 //   - live games: every new position is queued at low priority while the game goes on, so most of a game is
 //     already analysed when it ends. Nothing about a live game is ever served (GET only answers finished games).
 //   - finished games: all their positions are queued at high priority.
@@ -8,7 +10,7 @@ import fs from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
-import { choToMove, withBoard } from '../src/janggi.ts'
+import { choToMove, engineKey, gameKeys, keyResult, replay } from '../src/janggi.ts'
 
 export const REVIEW_DEPTH = 16 // keep in step with src/review.ts
 export const REVIEW_MULTIPV = 2
@@ -68,9 +70,10 @@ const stored = (fen: string) => {
 }
 
 /** A finished position needs no engine: its result, as expected points for the side to move. */
-function terminal(fen: string): PosEval | undefined {
-  const result = withBoard(fen, (b) => (b.isGameOver() ? b.result() : null))
-  if (!result) return undefined
+function terminal(key: string): PosEval | undefined {
+  const end = keyResult(key)
+  if (!end) return undefined
+  const { result, fen } = end
   const cho = result === '1-0' ? 1 : result === '0-1' ? 0 : 0.5
   return { lines: [], terminal: choToMove(fen) ? cho : 1 - cho }
 }
@@ -102,7 +105,7 @@ function analyse(fen: string): Promise<PosEval> {
         resolve({ lines: lines.filter(Boolean) })
       }
     }
-    sf!.postMessage(`position fen ${fen}`)
+    sf!.postMessage(`position fen ${fen}`) // a key: "<fen>" or "<fen> moves <…>"
     sf!.postMessage(`go depth ${REVIEW_DEPTH}`)
   })
 }
@@ -140,17 +143,12 @@ function enqueue(fens: string[], high: boolean) {
   void work()
 }
 
-/** A new position in a live game (analysed in the background, never shown before the game ends) */
-export const analyseLive = (fen: string) => enqueue([fen], false)
+/** The newest position of a live game (analysed in the background, never shown before the game ends) */
+export const analyseLive = (start: string, moves: string[]) => enqueue([moves.length ? engineKey(start, replay(start, moves)) : start], false)
 
-/** Every position of a game, from the start */
-export function gameFens(start: string, moves: string[]) {
-  return withBoard(start, (b) => [start, ...moves.map((m) => (b.push(m), b.fen()))])
-}
-
-/** A finished game: queue what is missing and report what is ready */
+/** A finished game: queue what is missing and report what is ready (by key, see src/janggi.ts gameKeys) */
 export function gameAnalysis(start: string, moves: string[]) {
-  const fens = gameFens(start, moves)
+  const fens = gameKeys(start, moves)
   const evals: Record<string, PosEval> = {}
   const missing: string[] = []
   for (const fen of fens) {

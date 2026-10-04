@@ -1,7 +1,7 @@
 // Engine exploration for the research notes: MultiPV lines from a position, in this site's notation.
 //   node scripts/explore.ts <cho setup> <han setup> "<uci moves …>" [depth=16] [multipv=5]
 // Scores are from 초's side (+ = 초 better), so lines from either side read the same way.
-import { lineSan, startFen, withBoard } from '../src/janggi.ts'
+import { gameKeys, lineSan, startFen, withBoard } from '../src/janggi.ts'
 import { classifyOpening } from '../src/openings.ts'
 import { openEngine } from './sf.ts'
 
@@ -21,7 +21,8 @@ const fen = withBoard(start, (b) => {
   return b.fen()
 })
 
-const lines = await search(fen, +depth)
+// the engine gets the moves too (up to the last capture), so it knows the repetition rules
+const lines = await search(gameKeys(start, moves).at(-1)!, +depth)
 const choToMove = fen.split(' ')[1] === 'w'
 const sans = lineSan(start, moves)
 console.log('line:', sans.map((s, i) => (i % 2 ? '' : `${i / 2 + 1}. `) + s).join(' ') || '(start)')
