@@ -8,10 +8,6 @@
 //                         official study already named that position
 // Reports: REPORT_HIDE reports take a study off the lists; admins (server/data/admins.txt, one nick#tag per line)
 // can hide, unhide or delete any study.
-// Analysis requests: a chapter holding a recorded game ([ChoPlayer]/[HanPlayer] headers, see studyFormat.ts) can be
-// handed to the hourly researcher by its owner if they are listed in server/data/requesters.txt (or are an admin).
-// The researcher reads study_requests (scripts/requests.ts) and answers with an official study whose study.json
-// has "request": "<study id>/<chapter id>".
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import type http from 'node:http'
@@ -75,14 +71,6 @@ export function initUserStudies(db: DatabaseSync) {
       created INTEGER NOT NULL,
       PRIMARY KEY (study_id, user_id)
     );
-    CREATE TABLE IF NOT EXISTS study_requests (
-      study_id TEXT NOT NULL,
-      chapter_id TEXT NOT NULL,
-      requester_id INTEGER NOT NULL,
-      note TEXT NOT NULL DEFAULT '',
-      created INTEGER NOT NULL,
-      PRIMARY KEY (study_id, chapter_id)
-    );
   `)
 }
 
@@ -96,37 +84,14 @@ export const likesOf = (db: DatabaseSync, id: string) =>
 const reportsOf = (db: DatabaseSync, id: string) =>
   (db.prepare('SELECT COUNT(*) n FROM study_reports WHERE study_id = ?').get(id) as { n: number }).n
 
-function listed(d: UserStudyDeps, file: string, u: { nick: string; tag: string } | undefined) {
+function isAdmin(d: UserStudyDeps, u: { nick: string; tag: string } | undefined) {
   if (!u) return false
   try {
-    const list = fs.readFileSync(path.join(d.dataDir, file), 'utf8').split('\n').map((l) => l.trim())
+    const list = fs.readFileSync(path.join(d.dataDir, 'admins.txt'), 'utf8').split('\n').map((l) => l.trim())
     return list.includes(`${u.nick}#${u.tag}`)
   } catch {
     return false
   }
-}
-const isAdmin = (d: UserStudyDeps, u: { nick: string; tag: string } | undefined) => listed(d, 'admins.txt', u)
-const canRequest = (d: UserStudyDeps, u: { nick: string; tag: string } | undefined) => listed(d, 'requesters.txt', u) || isAdmin(d, u)
-
-/** Official studies (built) by the request they answer: "<study>/<chapter>" -> official study id */
-function answered(d: UserStudyDeps): Record<string, string> {
-  try {
-    const index = JSON.parse(fs.readFileSync(path.join(d.dist, 'studies/index.json'), 'utf8')) as { id: string; request?: string }[]
-    return Object.fromEntries(index.filter((s) => s.request).map((s) => [s.request!, s.id]))
-  } catch {
-    return {}
-  }
-}
-
-/** The owner's view of a study's requests, by chapter */
-function requestsOf(d: UserStudyDeps, studyId: string) {
-  const done = answered(d)
-  const rows = d.db.prepare('SELECT chapter_id, note, created FROM study_requests WHERE study_id = ?').all(studyId) as {
-    chapter_id: string
-    note: string
-    created: number
-  }[]
-  return Object.fromEntries(rows.map((r) => [r.chapter_id, { note: r.note, created: day(r.created), answer: done[`${studyId}/${r.chapter_id}`] }]))
 }
 
 function officialTopics(d: UserStudyDeps): string[] {
@@ -191,8 +156,6 @@ export function viewStudy(d: UserStudyDeps, r: Row, viewer?: { id: number; nick:
     owner,
     admin,
     pgn: owner ? stored : undefined,
-    canRequest: owner && canRequest(d, viewer),
-    requests: owner ? requestsOf(d, r.id) : undefined,
   }
 }
 
@@ -270,7 +233,7 @@ export async function handleUserStudies(d: UserStudyDeps, req: http.IncomingMess
     return true
   }
 
-  const m = /^\/api\/user-studies\/(u-[a-z0-9]{8})(?:\/(save|delete|report|hide|request))?$/.exec(p)
+  const m = /^\/api\/user-studies\/(u-[a-z0-9]{8})(?:\/(save|delete|report|hide))?$/.exec(p)
   if (!m) return false
   const r = getStudy(d, m[1])
   if (!r) return json(res, 404, { error: '연구를 찾을 수 없어요' }), true
@@ -328,35 +291,8 @@ export async function handleUserStudies(d: UserStudyDeps, req: http.IncomingMess
     db.prepare('DELETE FROM user_studies WHERE id = ?').run(r.id)
     db.prepare('DELETE FROM study_likes WHERE study_id = ?').run(r.id)
     db.prepare('DELETE FROM study_reports WHERE study_id = ?').run(r.id)
-    db.prepare('DELETE FROM study_requests WHERE study_id = ?').run(r.id)
     clearExtra()
     json(res, 200, { ok: true })
-    return true
-  }
-  if (action === 'request') {
-    if (!owner || !canRequest(d, me)) return json(res, 403, { error: '분석을 맡길 수 없는 계정이에요' }), true
-    const body = await d.readBody(req)
-    const chapterId = String(body.chapter ?? '')
-    if (body.cancel) {
-      db.prepare('DELETE FROM study_requests WHERE study_id = ? AND chapter_id = ?').run(r.id, chapterId)
-      return json(res, 200, { ok: true, requests: requestsOf(d, r.id) }), true
-    }
-    const stored = (JSON.parse(r.chapters) as StoredChapter[]).find((c) => c.id === chapterId)
-    if (!stored) return json(res, 400, { error: '먼저 저장해 주세요' }), true
-    const ch = parseChapter(stored.pgn, stored.id)
-    let plies = 0
-    for (let n = ch.root.ch[0]; n; n = n.ch[0]) plies++
-    if (!ch.game?.cho || !ch.game?.han) return json(res, 400, { error: '초와 한의 대국자를 적어 주세요' }), true
-    if (plies < 10) return json(res, 400, { error: '기보를 10수 이상 적어 주세요' }), true
-    const note = String(body.note ?? '').trim().slice(0, 500)
-    db.prepare('INSERT OR REPLACE INTO study_requests (study_id, chapter_id, requester_id, note, created) VALUES (?, ?, ?, ?, ?)').run(
-      r.id,
-      chapterId,
-      me.id,
-      note,
-      Date.now(),
-    )
-    json(res, 200, { ok: true, requests: requestsOf(d, r.id) })
     return true
   }
   if (action === 'report') {

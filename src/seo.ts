@@ -72,6 +72,17 @@ export const PAGES: PageMeta[] = [
 <p>초한 장기의 레이팅 대국 결과로 매겨지는 Glicko-2 순위예요. 닉네임으로 플레이어를 찾아 승·무·패, 승률, 최근 대국을 볼 수 있고, 대국을 누르면 AI 게임 리뷰로 열립니다.</p>
 <nav><a href="/">온라인 대국</a> · <a href="/analysis">장기 분석판</a></nav>`,
   },
+  {
+    path: '/records',
+    title: '장기 대회 기보와 AI 게임 리뷰 | 초한 장기',
+    description: '장기 대회와 방송 대국의 기보를 모아 AI 게임 리뷰(우세 그래프, 수마다 탁월·실수 판정)로 봐요. 누구나 기보를 올릴 수 있어요.',
+    changefreq: 'daily',
+    priority: 0.6,
+    body: `
+<h1>장기 대회 기보</h1>
+<p>대회와 방송에서 둔 장기 기보를 누구나 올리고, Fairy-Stockfish 엔진의 게임 리뷰(우세 그래프, 수마다 탁월·좋은 수·실수·블런더 판정)로 함께 봐요. 올라온 기보는 연구자가 차례로 받아 전환점과 더 나은 수순을 장기 연구로 써요.</p>
+<nav><a href="/analysis">장기 분석판</a> · <a href="/study">장기 연구</a> · <a href="/notation">기보 표기법</a></nav>`,
+  },
   NOTATION_PAGE,
   LICENSES_PAGE,
   PRIVACY_PAGE,

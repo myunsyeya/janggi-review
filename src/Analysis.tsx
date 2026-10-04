@@ -11,6 +11,8 @@ import { useOpening } from "./openingNames"
 import { loadTheory, positionKey } from "./studyData"
 import { OpeningBar } from "./OpeningBar"
 import Explorer from "./Explorer"
+import RecordForm, { RecordBar } from './RecordForm'
+import type { RecordDetail } from './recordData'
 import {
   type Setup,
   choScore,
@@ -44,6 +46,8 @@ export interface GameImport {
   review?: boolean
   /** a finished game on the site: its review comes from the server's analysis (prepared during the game) */
   gameId?: string
+  /** a tournament record (대회 기보): reviewed by the server too */
+  record?: RecordDetail
   result?: GameResult | null
   reason?: string | null
 }
@@ -53,11 +57,14 @@ export default function Analysis({
   active,
   load,
   onNewGame,
+  onRecord,
 }: {
   rulesReady: boolean
   active: boolean
   load?: GameImport | null
   onNewGame: () => void
+  /** open a tournament record (after uploading it) */
+  onRecord: (id: string) => void
 }) {
   const [engine, setEngine] = useState<Engine | null>(null)
   const [engineError, setEngineError] = useState<string | null>(null)
@@ -81,6 +88,8 @@ export default function Analysis({
   const [reviewOn, setReviewOn] = useState(false)
   const [loadedResult, setLoadedResult] = useState<{ at: number; label: string } | null>(null)
   const [fullRun, setFullRun] = useState(false)
+  const [record, setRecord] = useState<RecordDetail | null>(null)
+  const [showUpload, setShowUpload] = useState(false)
 
   useEffect(() => {
     getEngine().then(setEngine, (e) => setEngineError(String(e?.message ?? e)))
@@ -267,26 +276,30 @@ export default function Analysis({
     // a game to review starts from the beginning; a line from a learning page shows its final position
     setCur(load.review || !load.moves.length ? ROOT : t.nextId - 1)
     setNames({ cho: load.cho ?? '초 (楚)', han: load.han ?? '한 (漢)' })
+    setRecord(load.record ?? null)
+    setShowUpload(false)
     // the stored result belongs to the loaded line's last move (it may be a resignation, not visible on the board)
     setLoadedResult(load.result ? { at: load.moves.length ? t.nextId - 1 : ROOT, label: resultLabel(load.result, load.reason) } : null)
     if (load.review) {
       setTab('review')
-      if (load.gameId) fetchServerReview(load.gameId, load)
+      if (load.record) fetchServerReview(`/records/${load.record.id}/analysis`, load)
+      else if (load.gameId) fetchServerReview(`/games/${load.gameId}/analysis`, load)
       else runFullReview(load.moves, load.startFen)
     }
   }, [load, rulesReady, runFullReview]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // a site game: the server analysed it (mostly while it was played); show its progress until all positions are in.
-  // If the server cannot help, the browser reviews it as before.
+  // A tournament record is analysed by the server as soon as it is uploaded. If the server cannot help, the browser
+  // reviews it as before.
   const serverPoll = useRef(0)
-  const fetchServerReview = async (gameId: string, game: GameImport) => {
+  const fetchServerReview = async (analysisPath: string, game: GameImport) => {
     const token = ++serverPoll.current
     setReviewOn(true)
     setFullRun(true)
     for (;;) {
       let r: { total: number; done: number; evals: Record<string, PosEval> }
       try {
-        r = await api(`/games/${gameId}/analysis`)
+        r = await api(analysisPath)
       } catch {
         if (serverPoll.current !== token) return
         setFullRun(false)
@@ -407,6 +420,7 @@ export default function Analysis({
     setCur(ROOT)
     setNames({ cho: "초 (楚)", han: "한 (漢)" })
     setLoadedResult(null)
+    setRecord(null)
     setShowSetup(false)
   }
 
@@ -547,6 +561,7 @@ export default function Analysis({
         )}
 
         {tab === 'explorer' && <Explorer fen={fen} onPlay={play} />}
+        {record && <RecordBar record={record} onChange={(r) => (setRecord(r), setNames({ cho: r.cho, han: r.han }))} onDeleted={newGame} />}
         <OpeningBar opening={opening} />
         <MoveList
           result={mainResult}
@@ -592,6 +607,31 @@ export default function Analysis({
             </button>
           )}
         </div>
+        {!record && plies.length >= 10 && (
+          <button className="btn upload-toggle" onClick={() => setShowUpload(true)}>
+            이 기보를 대회 기보로 올리기
+          </button>
+        )}
+        {showUpload && !record && (
+          <div className="record-modal-back" onClick={() => setShowUpload(false)}>
+            <div className="record-modal" onClick={(e) => e.stopPropagation()}>
+              <header>
+                <h3>대회 기보로 올리기</h3>
+                <button title="닫기" onClick={() => setShowUpload(false)}>
+                  ✕
+                </button>
+              </header>
+              <RecordForm
+                start={start}
+                moves={plies.map((p) => p.uci)}
+                onDone={(id) => {
+                  setShowUpload(false)
+                  onRecord(id)
+                }}
+              />
+            </div>
+          </div>
+        )}
         {showSetup && tab === "analysis" && (
           <div className="setup">
             <div className="setup-label">한 차림 <span className="muted small">(판 아래쪽에서 본 모습)</span></div>

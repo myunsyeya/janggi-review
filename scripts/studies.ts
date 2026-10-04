@@ -18,7 +18,7 @@ interface Meta {
   description: string
   created: string
   updated: string
-  request?: string // answers a game-analysis request: "<user study id>/<chapter id>"
+  record?: string // analyses a tournament record (대회 기보, server/records.ts): its id
 }
 
 const TOPICS = JSON.parse(fs.readFileSync(path.join(SRC, 'topics.json'), 'utf8')) as Record<string, string>
@@ -46,9 +46,9 @@ for (const id of fs.existsSync(SRC) ? fs.readdirSync(SRC).sort() : []) {
       return parseChapter(fs.readFileSync(path.join(dir, f), 'utf8'), m[1])
     })
   if (!chapters.length) throw new Error(`${id}: no chapters`)
-  if (meta.request && !/^u-[a-z0-9]{8}\/c[a-z0-9]{4}$/.test(meta.request)) throw new Error(`${id}: "request" must be "<user study id>/<chapter id>"`)
+  if (meta.record && !/^r-[a-z0-9]{8}$/.test(meta.record)) throw new Error(`${id}: "record" must be a record id (r-…)`)
   for (const c of chapters) {
-    if (meta.request && !c.game) throw new Error(`${id}/${c.id}: a game analysis keeps the game headers ([Event] [ChoPlayer] [HanPlayer] …) in every chapter`)
+    if (meta.record && !c.game) throw new Error(`${id}/${c.id}: a game analysis keeps the game headers ([Event] [ChoPlayer] [HanPlayer] …) in every chapter`)
     if (!c.game) continue
     const named = (n: StudyNode): boolean => !!n.name || n.ch.some(named)
     if (named(c.root)) throw new Error(`${id}/${c.id}: a recorded game names no positions ([%name] belongs in opening studies)`)

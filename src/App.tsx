@@ -2,6 +2,8 @@ import { useEffect, useState, type MouseEvent, type ReactNode } from 'react'
 import Analysis, { type GameImport } from './Analysis'
 import Play from './Play'
 import Ranking from './Ranking'
+import Records from './Records'
+import { loadRecordImport } from './recordData'
 import StudyList from './StudyList'
 import StudyPage from './StudyPage'
 import StudyEditor from './StudyEditor'
@@ -10,10 +12,10 @@ import { usePresence } from './presence'
 import { loadRules } from './janggi'
 import { PAGES, pageFor } from './seo'
 import { SETUPS, replay, startFen, withBoard, type Setup } from './janggi'
-import { IconAnalysis, IconLearn, IconPlay, IconRanking } from './ui'
+import { IconAnalysis, IconLearn, IconPlay, IconRanking, IconReview } from './ui'
 
-type AppPage = 'play' | 'analysis' | 'ranking'
-const APP_PAGES: Partial<Record<string, AppPage>> = { '/': 'play', '/analysis': 'analysis', '/ranking': 'ranking' }
+type AppPage = 'play' | 'analysis' | 'ranking' | 'records'
+const APP_PAGES: Partial<Record<string, AppPage>> = { '/': 'play', '/analysis': 'analysis', '/ranking': 'ranking', '/records': 'records' }
 const DOC_PATHS = new Set(PAGES.filter((p) => p.doc).map((p) => p.path))
 // /study, /study/mine, /study/topic/<topic>, /study/<id>, /study/<id>/<chapter>, /study/<id>/edit
 function studyRoute(path: string) {
@@ -60,6 +62,12 @@ function lineFromUrl(url: URL): GameImport | null {
   return { key: url.search, startFen: fen, moves: replay(fen, legal) }
 }
 
+/** /analysis?record=r-… → that tournament record's id */
+function recordFromUrl(url: URL) {
+  const id = url.searchParams.get('record')
+  return url.pathname === '/analysis' && id && /^r-[a-z0-9]{8}$/.test(id) ? id : null
+}
+
 export default function App() {
   const [rulesReady, setRulesReady] = useState(false)
   const [path, setPath] = useState(pathFromLocation)
@@ -73,8 +81,11 @@ export default function App() {
   useEffect(() => {
     loadRules().then(() => {
       setRulesReady(true)
-      const line = lineFromUrl(new URL(location.href))
+      const url = new URL(location.href)
+      const line = lineFromUrl(url)
       if (line) setLoad(line)
+      const rec = recordFromUrl(url)
+      if (rec) openRecord(rec, false)
     })
     const onPop = () => {
       setPath(pathFromLocation())
@@ -100,6 +111,17 @@ export default function App() {
     setSearch(query)
   }
 
+  /** A tournament record in the game review (/analysis?record=…) */
+  const openRecord = (id: string, push = true) => {
+    loadRecordImport(id).then(
+      (g) => {
+        setLoad(g)
+        if (push) go('/analysis', `?record=${id}`)
+      },
+      (e) => alert((e as Error).message),
+    )
+  }
+
   /** In-app navigation for plain clicks on links to our own pages; other clicks behave normally. */
   const followLink = (e: MouseEvent) => {
     const a = (e.target as HTMLElement).closest('a')
@@ -109,6 +131,8 @@ export default function App() {
     e.preventDefault()
     const line = rulesReady ? lineFromUrl(url) : null
     if (line) setLoad(line)
+    const rec = rulesReady ? recordFromUrl(url) : null
+    if (rec) return openRecord(rec)
     go(url.pathname, studyRoute(url.pathname) ? url.search : '')
   }
 
@@ -139,6 +163,10 @@ export default function App() {
         <NavLink to="/study" className={page === 'study' ? 'active' : ''}>
           <IconLearn />
           <span>학습</span>
+        </NavLink>
+        <NavLink to="/records">
+          <IconReview />
+          <span>기보</span>
         </NavLink>
         <div className="sidebar-foot">
           <NavLink to="/notation" className="foot-link">
@@ -182,7 +210,11 @@ export default function App() {
             setSeek((s) => s + 1)
             go('/')
           }}
+          onRecord={openRecord}
         />
+      </main>
+      <main className="page" hidden={page !== 'records'}>
+        <Records active={page === 'records'} onOpen={openRecord} />
       </main>
       {study?.list && (
         <main className="page">

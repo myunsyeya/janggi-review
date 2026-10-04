@@ -1,26 +1,25 @@
 // Engine pass over a whole game for the research notes: every move's value against the engine's best, in the
 // allowance bands of research/personas.md, then the turning points. Scores are from 초's side.
-//   node scripts/gamecheck.ts <study id>/<chapter id> [depth=18]          a request (scripts/requests.ts)
+//   node scripts/gamecheck.ts <record id> [depth=18]          a tournament record (scripts/requests.ts)
 //   node scripts/gamecheck.ts <cho setup> <han setup> "<uci moves>" [depth=18]
 // A move's loss = best value of the position before it − value after it, both for the side that moved.
 // Losses under 0.4 wobble at this depth: check every turning point again with explore.ts before writing it.
 import { lineSan, startFen, withBoard } from '../src/janggi.ts'
 import { classifyOpening } from '../src/openings.ts'
-import { loadRequests, mainLine } from './requestLib.ts'
+import { loadRecords } from './requestLib.ts'
 import { openEngine, type Line } from './sf.ts'
 
 const args = process.argv.slice(2)
 const { search } = await openEngine({ threads: 4, hash: 128 })
 let cho: string, han: string, moves: string[], depth: number
-if (/^u-[a-z0-9]{8}\/c[a-z0-9]{4}$/.test(args[0] ?? '')) {
-  const r = loadRequests().find((x) => x.key === args[0])
-  if (!r) throw new Error(`no request ${args[0]}`)
-  ;({ cho, han } = r.chapter)
-  moves = mainLine(r.chapter)
+if (/^r-[a-z0-9]{8}$/.test(args[0] ?? '')) {
+  const r = loadRecords().find((x) => x.id === args[0])
+  if (!r) throw new Error(`no record ${args[0]}`)
+  ;({ cho, han, moves } = r)
   depth = +(args[1] ?? 18)
 } else {
   if (args.length < 3) {
-    console.error('usage: node scripts/gamecheck.ts <study>/<chapter> [depth] | <cho> <han> "<uci moves>" [depth]')
+    console.error('usage: node scripts/gamecheck.ts <record id> [depth] | <cho> <han> "<uci moves>" [depth]')
     process.exit(2)
   }
   ;[cho, han] = args

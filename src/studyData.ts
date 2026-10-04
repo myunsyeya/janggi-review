@@ -14,8 +14,8 @@ export interface StudyMeta {
   user?: boolean
   created: string
   updated: string
-  /** official game analyses: the user study chapter whose game they analyse */
-  request?: string
+  /** official game analyses: the tournament record (대회 기보) they analyse */
+  record?: string
   chapters: { id: string; name: string; topics?: string[] }[]
 }
 export interface Study extends Omit<StudyMeta, 'chapters'> {
@@ -29,10 +29,6 @@ export interface Study extends Omit<StudyMeta, 'chapters'> {
   admin?: boolean
   /** the chapters' source text, for the owner's editor */
   pgn?: { id: string; pgn: string }[]
-  /** the owner may hand recorded games to the researcher */
-  canRequest?: boolean
-  /** analysis requests by chapter id; answer = the official study that analyses the game */
-  requests?: Record<string, { note: string; created: string; answer?: string }>
 }
 
 export const isUserStudy = (id: string) => id.startsWith('u-')

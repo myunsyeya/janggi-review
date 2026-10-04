@@ -1,8 +1,7 @@
 // Editor for a user's own study: chapters on the left, the board in the middle (moves make the tree, right-drag
 // draws), and on the right the move list with the selected move's comment, glyph and position name.
 // Saved as the same text format as the official studies; the server checks every move.
-// A chapter can also hold a recorded game (players, event, result) that the owner may hand to the hourly researcher
-// for an engine analysis (accounts in server/data/requesters.txt only).
+// A chapter can also be a recorded game: its players, event and result are shown with it.
 import { useEffect, useMemo, useState } from 'react'
 import Board from './Board'
 import MoveList from './MoveList'
@@ -27,8 +26,6 @@ export default function StudyEditor({ id, active, rulesReady }: { id: string; ac
   const [status, setStatus] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [allTopics, setAllTopics] = useState<string[]>([])
-  const [requests, setRequests] = useState<NonNullable<Study['requests']>>({})
-  const [requestNote, setRequestNote] = useState('')
   const [baseFlipped, setFlipped] = useState(false)
   const flipped = baseFlipped !== useHeldKey('KeyF', active)
 
@@ -42,7 +39,6 @@ export default function StudyEditor({ id, active, rulesReady }: { id: string; ac
       setTopics(s.topics)
       setPublished(!!s.published)
       setChapters(s.chapters.map(fromChapter))
-      setRequests(s.requests ?? {})
     })
     loadTopics().then((t) => setAllTopics(Object.keys(t)))
   }, [id, rulesReady])
@@ -162,19 +158,6 @@ export default function StudyEditor({ id, active, rulesReady }: { id: string; ac
       const game = { ...c.game, [key]: v || undefined }
       return { ...c, game: Object.values(game).some(Boolean) ? game : undefined }
     })
-  const request = async (cancel = false) => {
-    try {
-      const r = await api<{ requests: NonNullable<Study['requests']> }>(`/user-studies/${id}/request`, savedToken(), {
-        chapter: ch.id,
-        note: requestNote,
-        cancel,
-      })
-      setRequests(r.requests)
-      setRequestNote('')
-    } catch (e) {
-      alert((e as Error).message)
-    }
-  }
   const remove = async () => {
     if (!confirm('이 연구를 지울까요? 되돌릴 수 없어요.')) return
     try {
@@ -304,37 +287,9 @@ export default function StudyEditor({ id, active, rulesReady }: { id: string; ac
               </label>
             ))}
           </div>
-          <div className="muted small">수순은 판에 그대로 두면 돼요. 본 수순(첫 줄)이 실제 기보로 읽혀요.</div>
-          {study.canRequest && (
-            <div className="editor-request">
-              {ch.id && requests[ch.id]?.answer ? (
-                <span>
-                  분석이 공개됐어요: <a href={`/study/${requests[ch.id].answer}`}>연구 보기</a>
-                </span>
-              ) : ch.id && requests[ch.id] ? (
-                <>
-                  <span>분석 대기 중 ({requests[ch.id].created}에 맡김). 매시 17분에 도는 연구자가 이어받아요.</span>
-                  <button className="btn" onClick={() => request(true)}>
-                    맡기기 취소
-                  </button>
-                </>
-              ) : (
-                <>
-                  <textarea
-                    rows={2}
-                    maxLength={500}
-                    value={requestNote}
-                    placeholder="연구자에게 남길 말 (선택, 예: 30수 근처를 중점적으로)"
-                    onChange={(e) => setRequestNote(e.target.value)}
-                  />
-                  <button className="btn primary" disabled={dirty || !ch.id || !ch.game?.cho || !ch.game?.han} onClick={() => request()}>
-                    분석 맡기기
-                  </button>
-                  {(dirty || !ch.id) && <span className="muted small">먼저 저장해 주세요</span>}
-                </>
-              )}
-            </div>
-          )}
+          <div className="muted small">
+            본 수순(첫 줄)이 실제 기보예요. 대회 기보를 게임 리뷰와 연구자의 분석으로 보고 싶다면 분석판에서 <a href="/records">대회 기보로 올려</a> 주세요.
+          </div>
         </details>
       </section>
 

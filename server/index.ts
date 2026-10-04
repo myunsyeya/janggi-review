@@ -12,6 +12,7 @@ import { handleStudies, initStudies, type StudyDeps } from './studies.ts'
 import { clearExtra, handleUserStudies, initUserStudies, type UserStudyDeps } from './userStudies.ts'
 import { handleUserStudyPage, handleUserStudySitemap } from './userStudyPages.ts'
 import { analyseLive, gameAnalysis, initAnalysis } from './analysis.ts'
+import { handleRecords, initRecords } from './records.ts'
 
 const PORT = +(process.env.JANGGI_PORT ?? 8787) // another port and data folder (JANGGI_DATA) for a test server
 const INITIAL_MS = 10 * 60 * 1000
@@ -67,6 +68,7 @@ db.exec(`
 `)
 initStudies(db)
 initUserStudies(db)
+initRecords(db)
 await initAnalysis(db, path.join(ROOT, '..'))
 
 // added later: profile pictures (version = upload time, null = none)
@@ -597,6 +599,7 @@ const server = http.createServer(async (req, res) => {
       return res.end(fs.readFileSync(file))
     }
     if (url.pathname.startsWith('/api/study-likes') && handleStudies(studyDeps, req, res, url, auth)) return
+    if (url.pathname.startsWith('/api/records') && (await handleRecords(userStudyDeps, req, res, url, auth))) return
     if ((url.pathname.startsWith('/api/user-studies') || url.pathname === '/api/study-extra') && (await handleUserStudies(userStudyDeps, req, res, url, auth))) return
     if (url.pathname === "/api/explorer") {
       const fen = url.searchParams.get("fen") ?? ""
