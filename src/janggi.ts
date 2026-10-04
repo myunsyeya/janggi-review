@@ -293,3 +293,40 @@ export function pointsResult(fen: string): { result: GameResult; score: string }
  * built from a FEN does not know the move before it (the rules engine only sees passes played on the same board).
  */
 export const passedTwice = (ucis: string[]) => ucis.length >= 2 && isPass(ucis[ucis.length - 1]) && isPass(ucis[ucis.length - 2])
+
+// --- no repeated positions ------------------------------------------------------------
+// A move may not bring back a position (board and side to move) that already came up in the game, the same way a
+// move may not leave one's own 궁 in check. The rules engine does not do this from a FEN, so it is checked here.
+// 한수쉼 is exempt: two passes in a row bring the board back by design and end the game on points.
+
+/** Board and side to move: what counts as "the same position" */
+export const positionOf = (fen: string) => fen.split(' ').slice(0, 2).join(' ')
+
+/** The positions a game has been through: the start and the position after every move */
+export function positionsSeen(start: string, ucis: string[]): Set<string> {
+  return withBoard(start, (b) => {
+    const seen = new Set([positionOf(start)])
+    for (const u of ucis) {
+      b.push(u)
+      seen.add(positionOf(b.fen()))
+    }
+    return seen
+  })
+}
+
+/** Legal moves of a position, leaving out the ones that would repeat a position in `seen` */
+export function legalNoRepeat(fen: string, seen: Set<string>): string[] {
+  return withBoard(fen, (b) =>
+    b
+      .legalMoves()
+      .split(' ')
+      .filter(Boolean)
+      .filter((u) => {
+        if (isPass(u)) return true
+        b.push(u)
+        const again = seen.has(positionOf(b.fen()))
+        b.pop()
+        return !again
+      }),
+  )
+}

@@ -6,7 +6,7 @@ import http from 'node:http'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { WebSocket, WebSocketServer } from 'ws'
-import { MAX_PLIES, SETUPS, type Setup, choToMove, loadRules, passedTwice, pointsResult, sanOf, startFen, withBoard } from '../src/janggi.ts'
+import { MAX_PLIES, SETUPS, type Setup, choToMove, legalNoRepeat, loadRules, passedTwice, pointsResult, positionOf, positionsSeen, sanOf, startFen, withBoard } from '../src/janggi.ts'
 import { INITIAL, update, type Rating } from './glicko2.ts'
 import { handleStudies, initStudies, type StudyDeps } from './studies.ts'
 import { clearExtra, handleUserStudies, initUserStudies, type UserStudyDeps } from './userStudies.ts'
@@ -313,8 +313,9 @@ function playMove(g: Game, side: Side, uci: string) {
     g.clock[side] = 0
     return finish(g, side === 'cho' ? '0-1' : '1-0', '시간 초과')
   }
+  const seen = positionsSeen(g.startFen!, g.moves)
+  if (!legalNoRepeat(g.fen!, seen).includes(uci)) return // includes the rule against repeated positions
   const res = withBoard(g.fen!, (b) => {
-    if (!b.legalMoves().split(' ').includes(uci)) return null
     const san = sanOf(b, uci)
     b.push(uci)
     const over = b.isGameOver()
@@ -341,6 +342,10 @@ function playMove(g: Game, side: Side, uci: string) {
     const p = pointsResult(res.fen)
     return finish(g, p.result, `${passedTwice(g.moves) ? '양쪽 한수쉼' : `${MAX_PLIES}수`} · 점수 ${p.score}`)
   }
+  // the rule against repeated positions can leave the side to move with nothing to play (in check, every escape
+  // repeats): like being mated
+  seen.add(positionOf(res.fen))
+  if (!legalNoRepeat(res.fen, seen).length) return finish(g, side === 'cho' ? '1-0' : '0-1', '둘 수 없음 (반복 금지)')
   schedule(g)
   broadcast(g)
 }

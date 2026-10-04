@@ -20,6 +20,8 @@ import {
   formatScore,
   MAX_PLIES,
   isPass,
+  legalNoRepeat,
+  positionOf,
   passedTwice,
   pointsResult,
   lineSan,
@@ -116,13 +118,19 @@ export default function Analysis({
       const p = pointsResult(fen)
       return { legal: [], over: true, result: p.result as string, reason: `${passedTwice(line) ? '양쪽 한수쉼' : `${MAX_PLIES}수`} · 점수 ${p.score}` }
     }
-    return withBoard(fen, (b) => ({
-      legal: b.legalMoves().split(' ').filter(Boolean),
-      over: b.isGameOver(),
-      result: b.result(),
-      reason: undefined as string | undefined,
-    }))
-  }, [fen, rulesReady, tree, cur])
+    // moves that would bring back an earlier position of this line are not allowed, as in a game
+    const seen = new Set([start, ...pathTo(tree, cur).map((id) => tree.nodes[id].fen)].map(positionOf))
+    const legal = legalNoRepeat(fen, seen)
+    return withBoard(fen, (b) => {
+      const mated = !b.isGameOver() && !legal.length // every move left would repeat
+      return {
+        legal,
+        over: b.isGameOver() || mated,
+        result: mated ? (choToMove(fen) ? '0-1' : '1-0') : b.result(),
+        reason: mated ? '둘 수 없음 (반복 금지)' : (undefined as string | undefined),
+      }
+    })
+  }, [fen, rulesReady, tree, cur, start])
 
   // re-analyse whenever the shown position changes
   const pendingUi = useRef<EngineAnalysis | null>(null)
