@@ -185,6 +185,8 @@ export const PIECE_POINTS: Record<string, number> = { r: 13, c: 7, n: 5, b: 3, a
 export const KOMI = 1.5 // 덤 for 한
 /** A game that reaches this many moves (both sides together, passes included) is decided on points */
 export const MAX_PLIES = 200
+/** A side with this many points or fewer on the board (덤 not counted) ends the game: decided on points */
+export const LOW_POINTS = 10
 const START_COUNT: Record<string, number> = { k: 1, a: 2, b: 2, n: 2, r: 2, c: 2, p: 5 }
 const CAPTURE_ORDER = ['r', 'c', 'n', 'b', 'a', 'p']
 
@@ -281,7 +283,7 @@ export function premoveTargets(fen: string, side: 'cho' | 'han'): string[] {
   return [...out]
 }
 
-/** Decision on points (two passes in a row, or MAX_PLIES): the side with more points left wins; 덤 rules out a tie. */
+/** Decision on points: the side with more points left (한 with 덤) wins; 덤 rules out a tie. */
 export function pointsResult(fen: string): { result: GameResult; score: string } {
   const m = material(fen)
   const fmt = (x: number) => String(x)
@@ -319,7 +321,7 @@ export function positionsSeen(start: string, ucis: string[]): Map<string, number
 }
 export const countPosition = (seen: Map<string, number>, fen: string) => seen.set(positionOf(fen), (seen.get(positionOf(fen)) ?? 0) + 1)
 
-/** Both sides below REPEAT_FREE_BELOW points: repetition is allowed */
+/** Both sides below REPEAT_FREE_BELOW points: repetition is allowed (MAX_PLIES still ends the game) */
 function repeatFree(fen: string) {
   const m = material(fen)
   return m.cho.score < REPEAT_FREE_BELOW && m.han.score - KOMI < REPEAT_FREE_BELOW
@@ -341,4 +343,23 @@ export function legalNoRepeat(fen: string, seen: Map<string, number>): string[] 
         return times < REPEAT_LIMIT - 1
       }),
   )
+}
+
+/**
+ * Whether the move just played ends the game on points (카카오 장기 rules), and why: both sides passed in a row,
+ * a side is down to LOW_POINTS points or fewer (덤 not counted), or MAX_PLIES moves were played (the game ends right
+ * there). `line` is every move so far, the last one included; `after` the position it reached.
+ */
+export function pointsEnding(line: string[], after: string): { result: GameResult; reason: string } | null {
+  const m = material(after)
+  const why = passedTwice(line)
+    ? '양쪽 한수쉼'
+    : m.cho.score <= LOW_POINTS || m.han.score - KOMI <= LOW_POINTS
+      ? `${LOW_POINTS}점 이하`
+      : line.length >= MAX_PLIES
+        ? `${MAX_PLIES}수`
+        : null
+  if (!why) return null
+  const p = pointsResult(after)
+  return { result: p.result, reason: `${why} · 점수 ${p.score}` }
 }

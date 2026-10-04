@@ -18,12 +18,10 @@ import {
   choScore,
   choToMove,
   formatScore,
-  MAX_PLIES,
   isPass,
   countPosition,
   legalNoRepeat,
-  passedTwice,
-  pointsResult,
+  pointsEnding,
   lineSan,
   material,
   parseUci,
@@ -112,15 +110,14 @@ export default function Analysis({
 
   const position = useMemo(() => {
     if (!rulesReady) return null
-    // decided on points: both sides passed in a row, or the line reached MAX_PLIES moves (a FEN does not know this)
-    const line = pathTo(tree, cur).map((id) => tree.nodes[id].uci)
-    if (passedTwice(line) || line.length >= MAX_PLIES) {
-      const p = pointsResult(fen)
-      return { legal: [], over: true, result: p.result as string, reason: `${passedTwice(line) ? '양쪽 한수쉼' : `${MAX_PLIES}수`} · 점수 ${p.score}` }
-    }
+    // decided on points as in a game (two passes, 10 points, 200 moves: a FEN does not know the moves before it)
+    const path = pathTo(tree, cur)
+    const line = path.map((id) => tree.nodes[id].uci)
+    const points = line.length ? pointsEnding(line, fen) : null
+    if (points) return { legal: [], over: true, result: points.result as string, reason: points.reason }
     // the repetition rule (동일 수 3회 금지) applies along this line, as in a game
     const seen = new Map<string, number>()
-    for (const f of [start, ...pathTo(tree, cur).map((id) => tree.nodes[id].fen)]) countPosition(seen, f)
+    for (const f of [start, ...path.map((id) => tree.nodes[id].fen)]) countPosition(seen, f)
     const legal = legalNoRepeat(fen, seen)
     return withBoard(fen, (b) => {
       const mated = !b.isGameOver() && !legal.length // every move left would repeat
@@ -401,10 +398,8 @@ export default function Analysis({
     if (loadedResult && loadedResult.at === mainEnd) return loadedResult.label
     if (!rulesReady || mainEnd === ROOT) return null
     const line = main.map((id) => tree.nodes[id].uci)
-    if (passedTwice(line) || line.length >= MAX_PLIES) {
-      const p = pointsResult(tree.nodes[mainEnd].fen)
-      return resultLabel(p.result, `${passedTwice(line) ? '양쪽 한수쉼' : `${MAX_PLIES}수`} · 점수 ${p.score}`)
-    }
+    const points = pointsEnding(line, tree.nodes[mainEnd].fen)
+    if (points) return resultLabel(points.result, points.reason)
     return withBoard(tree.nodes[mainEnd].fen, (b) => {
       if (!b.isGameOver()) return null
       const reason = b.isCheck() && b.numberLegalMoves() === 0 ? "외통" : "규칙"

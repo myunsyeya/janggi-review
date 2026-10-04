@@ -6,7 +6,7 @@ import http from 'node:http'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { WebSocket, WebSocketServer } from 'ws'
-import { MAX_PLIES, SETUPS, type Setup, choToMove, legalNoRepeat, loadRules, countPosition, passedTwice, pointsResult, positionsSeen, sanOf, startFen, withBoard } from '../src/janggi.ts'
+import { SETUPS, type Setup, choToMove, legalNoRepeat, loadRules, countPosition, pointsEnding, positionsSeen, sanOf, startFen, withBoard } from '../src/janggi.ts'
 import { INITIAL, update, type Rating } from './glicko2.ts'
 import { handleStudies, initStudies, type StudyDeps } from './studies.ts'
 import { clearExtra, handleUserStudies, initUserStudies, type UserStudyDeps } from './userStudies.ts'
@@ -337,11 +337,9 @@ function playMove(g: Game, side: Side, uci: string) {
   analyseLive(res.fen) // review prepared in the background; never served before the game ends
   if (g.drawOffer === other(side)) g.drawOffer = null
   if (res.over) return finish(g, res.result!, res.mate ? '외통' : res.bikjang ? '빅장' : '규칙')
-  // decided on points: both sides passed in a row, or the game reached MAX_PLIES moves
-  if (passedTwice(g.moves) || g.moves.length >= MAX_PLIES) {
-    const p = pointsResult(res.fen)
-    return finish(g, p.result, `${passedTwice(g.moves) ? '양쪽 한수쉼' : `${MAX_PLIES}수`} · 점수 ${p.score}`)
-  }
+  // decided on points: two passes in a row, a side down to 10 points, or 200 moves (see pointsEnding)
+  const points = pointsEnding(g.moves, res.fen)
+  if (points) return finish(g, points.result, points.reason)
   // the repetition rule can leave the side to move with nothing to play (in check, every escape would be a third
   // repetition): like being mated
   countPosition(seen, res.fen)
