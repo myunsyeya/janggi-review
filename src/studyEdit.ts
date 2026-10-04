@@ -2,7 +2,7 @@
 // position name). It is saved as the same PGN-style text as the official studies (see studyFormat.ts), so the
 // server checks it with the same parser.
 import { startFen, withBoard, type Setup } from './janggi.ts'
-import type { Shape, StudyChapter, StudyNode } from './studyFormat.ts'
+import { GAME_TAGS, type GameInfo, type Shape, type StudyChapter, type StudyNode } from './studyFormat.ts'
 import { addMove, newTree, ROOT, type Tree } from './tree.ts'
 
 export interface Note {
@@ -18,6 +18,7 @@ export interface EditChapter {
   cho: Setup
   han: Setup
   topics?: string[]
+  game?: GameInfo
   tree: Tree
   notes: Record<number, Note>
 }
@@ -47,7 +48,7 @@ export function fromChapter(ch: StudyChapter): EditChapter {
     for (const c of src.ch) add(c, id)
   }
   for (const c of ch.root.ch) add(c, ROOT)
-  return { id: ch.id, name: ch.name, cho: ch.cho, han: ch.han, topics: ch.topics, tree, notes }
+  return { id: ch.id, name: ch.name, cho: ch.cho, han: ch.han, topics: ch.topics, game: ch.game, tree, notes }
 }
 
 const clean = (s: string) => s.replace(/[{}]/g, '').replace(/\[%/g, '[ %').trim()
@@ -96,6 +97,10 @@ export function toPgn(ch: EditChapter): string {
   }
   const head = [`[Chapter "${quote(ch.name || '챕터')}"]`, `[Cho "${ch.cho}"]`, `[Han "${ch.han}"]`]
   if (ch.topics?.length) head.push(`[Topics "${quote(ch.topics.join(', '))}"]`)
+  for (const [key, tag] of GAME_TAGS) {
+    const v = ch.game?.[key]?.replace(/[\n\]]/g, ' ').trim()
+    if (v) head.push(`[${tag} "${quote(v)}"]`)
+  }
   const intro = noteText(notes[ROOT])
   return `${head.join('\n')}\n\n${intro ? intro + '\n' : ''}${seq(ROOT, true)} *\n`
 }

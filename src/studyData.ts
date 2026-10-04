@@ -14,6 +14,8 @@ export interface StudyMeta {
   user?: boolean
   created: string
   updated: string
+  /** official game analyses: the user study chapter whose game they analyse */
+  request?: string
   chapters: { id: string; name: string; topics?: string[] }[]
 }
 export interface Study extends Omit<StudyMeta, 'chapters'> {
@@ -27,6 +29,10 @@ export interface Study extends Omit<StudyMeta, 'chapters'> {
   admin?: boolean
   /** the chapters' source text, for the owner's editor */
   pgn?: { id: string; pgn: string }[]
+  /** the owner may hand recorded games to the researcher */
+  canRequest?: boolean
+  /** analysis requests by chapter id; answer = the official study that analyses the game */
+  requests?: Record<string, { note: string; created: string; answer?: string }>
 }
 
 export const isUserStudy = (id: string) => id.startsWith('u-')
@@ -217,6 +223,7 @@ export function loadTheory() {
     for (const meta of index) {
       const study = await loadStudy(meta.id)
       for (const ch of study?.chapters ?? []) {
+        if (ch.game) continue // a recorded game is not opening theory
         const nodes = chapterNodes(ch)
         const visit = (id: number) => {
           for (const c of nodes[id].children) {

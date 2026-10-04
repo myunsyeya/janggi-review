@@ -13,14 +13,14 @@ import { clearExtra, handleUserStudies, initUserStudies, type UserStudyDeps } fr
 import { handleUserStudyPage, handleUserStudySitemap } from './userStudyPages.ts'
 import { analyseLive, gameAnalysis, initAnalysis } from './analysis.ts'
 
-const PORT = 8787
+const PORT = +(process.env.JANGGI_PORT ?? 8787) // another port and data folder (JANGGI_DATA) for a test server
 const INITIAL_MS = 10 * 60 * 1000
 const INCREMENT_MS = 5 * 1000
 const SETUP_MS = 30 * 1000
 const DEFAULT_SETUP: Setup = '마상상마'
 
 const ROOT = path.dirname(new URL(import.meta.url).pathname)
-const DATA = path.join(ROOT, 'data')
+const DATA = process.env.JANGGI_DATA ?? path.join(ROOT, 'data')
 fs.mkdirSync(DATA, { recursive: true, mode: 0o700 })
 
 await loadRules({ wasmBinary: fs.readFileSync(path.join(ROOT, '../node_modules/ffish-es6/ffish.wasm')) } as never)

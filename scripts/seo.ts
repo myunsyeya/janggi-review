@@ -3,7 +3,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { PAGES, SITE, type PageMeta } from '../src/seo.ts'
-import { NOTATION_NOTE, chapterHtml, short } from '../src/studyHtml.ts'
+import { NOTATION_NOTE, chapterHtml, gameHtml, gamePeople, short } from '../src/studyHtml.ts'
 
 const DIST = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'dist')
 const template = fs.readFileSync(path.join(DIST, 'index.html'), 'utf8')
@@ -223,7 +223,7 @@ if (studyIndex.length) {
         priority: 0.7,
         ogType: 'article',
         image: fs.existsSync(path.join(DIST, 'og/study', study.id, `${ch.id}.png`)) ? `/og/study/${study.id}/${ch.id}.png` : undefined,
-        body: `<h1>${esc(study.title)}: ${esc(ch.name)}</h1>${NOTATION_NOTE}<h2>수순과 해설</h2>${chapterHtml(ch.root)}${nav}`,
+        body: `<h1>${esc(study.title)}: ${esc(ch.name)}</h1>${gameHtml(ch.game)}${NOTATION_NOTE}<h2>수순과 해설</h2>${chapterHtml(ch.root)}${nav}`,
       }
       writePage(i === 0 ? `study/${study.id}.html` : `study/${study.id}/${ch.id}.html`, page, {
         about: `${abs(p)}#article`,
@@ -250,8 +250,8 @@ if (studyIndex.length) {
             datePublished: study.created,
             dateModified: study.updated,
             image: SITE.url + (page.image ?? SITE.image),
-            keywords: ['장기', 'Janggi', ...topics].join(', '),
-            about: [{ '@type': 'Thing', name: '장기 포진 (Janggi opening)' }, ...topics.map((t) => ({ '@type': 'Thing', name: t }))],
+            keywords: ['장기', 'Janggi', ...topics, ...gamePeople(ch.game)].join(', '),
+            about: [{ '@type': 'Thing', name: ch.game ? '장기 기보 분석 (Janggi game analysis)' : '장기 포진 (Janggi opening)' }, ...topics.map((t) => ({ '@type': 'Thing', name: t }))],
           },
         ],
       })

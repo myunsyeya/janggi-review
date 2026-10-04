@@ -1,10 +1,20 @@
 // Study chapters as plain HTML for crawlers: used at build time (scripts/seo.ts) for the official studies and by the
 // server (server/userStudyPages.ts) for user studies.
-import type { StudyNode } from './studyFormat.ts'
+import type { GameInfo, StudyNode } from './studyFormat.ts'
 
 export const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 export const NOTATION_NOTE = `<p>기보는 이 사이트의 표기법으로 적었어요(H 마, E 상, C 포, R 차, K 궁, A 사, 졸·병은 글자 없음, 줄 a~i·선 1~10). + 평가는 초에게 유리하다는 뜻이에요. <a href="/notation">기보 표기법 보기</a></p>`
+
+/** A recorded game's players and event, as one line */
+export function gameHtml(game?: GameInfo) {
+  if (!game) return ''
+  const where = [game.event, game.round, game.date].filter(Boolean).join(' · ')
+  return `<p>초 ${esc(game.cho ?? '?')} 대 한 ${esc(game.han ?? '?')}${where ? ` · ${esc(where)}` : ''}${game.result ? ` · ${esc(game.result)}` : ''}</p>`
+}
+
+/** People a recorded game names, for keywords */
+export const gamePeople = (game?: GameInfo) => [game?.cho, game?.han, game?.event].filter((x): x is string => !!x)
 
 export const short = (s: string) => ([...s].length > 80 ? [...s].slice(0, 79).join('') + '…' : s)
 

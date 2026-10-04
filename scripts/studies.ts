@@ -18,6 +18,7 @@ interface Meta {
   description: string
   created: string
   updated: string
+  request?: string // answers a game-analysis request: "<user study id>/<chapter id>"
 }
 
 const TOPICS = JSON.parse(fs.readFileSync(path.join(SRC, 'topics.json'), 'utf8')) as Record<string, string>
@@ -45,6 +46,13 @@ for (const id of fs.existsSync(SRC) ? fs.readdirSync(SRC).sort() : []) {
       return parseChapter(fs.readFileSync(path.join(dir, f), 'utf8'), m[1])
     })
   if (!chapters.length) throw new Error(`${id}: no chapters`)
+  if (meta.request && !/^u-[a-z0-9]{8}\/c[a-z0-9]{4}$/.test(meta.request)) throw new Error(`${id}: "request" must be "<user study id>/<chapter id>"`)
+  for (const c of chapters) {
+    if (meta.request && !c.game) throw new Error(`${id}/${c.id}: a game analysis keeps the game headers ([Event] [ChoPlayer] [HanPlayer] …) in every chapter`)
+    if (!c.game) continue
+    const named = (n: StudyNode): boolean => !!n.name || n.ch.some(named)
+    if (named(c.root)) throw new Error(`${id}/${c.id}: a recorded game names no positions ([%name] belongs in opening studies)`)
+  }
   for (const c of chapters) if (!c.root.comment) throw new Error(`${id}/${c.id}: start the chapter with a { comment } that sums it up (used as its search description)`)
   meta.topics = [...new Set([...meta.topics, ...chapters.flatMap((c) => c.topics ?? [])])]
   for (const t of meta.topics) if (!TOPICS[t]) throw new Error(`${id}: topic "${t}" has no English path in content/studies/topics.json`)

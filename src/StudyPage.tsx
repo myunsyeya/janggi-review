@@ -5,6 +5,7 @@ import { OpeningBar } from './OpeningBar'
 import { useOpening } from './openingNames'
 import { api, savedToken } from './net'
 import { isPass, parsePieces, parseUci, withBoard } from './janggi'
+import type { GameInfo } from './studyFormat'
 import { moveSound, playSound } from './sound'
 import { GLYPH_COLOR, SHAPE_COLOR, navigate, chapterHref, chapterNodes, loadStudy, loadTopics, moveLabel, topicHref, topicPath, type Study, type ViewNode } from './studyData'
 import { IconFirst, IconLast, IconNext, IconPrev, useHeldKey } from './ui'
@@ -217,8 +218,14 @@ export default function StudyPage({
       </section>
 
       <section className="study-side">
+        {chapter.game && <GameCard game={chapter.game} />}
         <OpeningBar opening={opening} link={opening?.named?.page?.split('?')[0] !== chapterHref(study, chapter.id)} />
-        <StudyTree nodes={nodes} cur={cur} onSelect={setCur} />
+        <StudyTree
+          nodes={nodes}
+          cur={cur}
+          onSelect={setCur}
+          chapterLink={(n) => (study.chapters[n - 1] && n - 1 !== study.chapters.indexOf(chapter) ? chapterHref(study, study.chapters[n - 1].id) : undefined)}
+        />
         {next(node).length > 1 && (
           <div className="study-next">
             {next(node).map((c, i) => (
@@ -268,14 +275,16 @@ function Glyph({ g }: { g?: string[] }) {
 }
 
 /** lichess-like move tree: main line in two columns, comments as paragraphs, variations indented inline. */
-function StudyTree({ nodes, cur, onSelect }: { nodes: ViewNode[]; cur: number; onSelect: (id: number) => void }) {
+type ChapterLink = (n: number) => string | undefined
+
+function StudyTree({ nodes, cur, onSelect, chapterLink }: { nodes: ViewNode[]; cur: number; onSelect: (id: number) => void; chapterLink: ChapterLink }) {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     ref.current?.querySelector('.active')?.scrollIntoView({ block: 'nearest' })
   }, [cur])
 
   const real = (n: ViewNode) => n.children.filter((c) => !nodes[c].hidden)
-  const text = (n: ViewNode) => <CommentText node={n} cur={cur} onSelect={onSelect} />
+  const text = (n: ViewNode) => <CommentText node={n} cur={cur} onSelect={onSelect} chapterLink={chapterLink} />
 
   const move = (n: ViewNode, withNumber: boolean) => (
     <span key={'m' + n.id} className={`tv-move ${cur === n.id ? 'active' : ''}`} onClick={() => onSelect(n.id)}>
@@ -382,13 +391,53 @@ function StudyTree({ nodes, cur, onSelect }: { nodes: ViewNode[]; cur: number; o
 }
 
 /** A comment with the moves written in it made clickable */
-function CommentText({ node, cur, onSelect }: { node: ViewNode; cur: number; onSelect: (id: number) => void }) {
+/** A recorded game's players, event and result, as entered with the game */
+function GameCard({ game }: { game: GameInfo }) {
+  const where = [game.event, game.round, game.date].filter(Boolean).join(' · ')
+  return (
+    <div className="study-game">
+      <span className="vs">
+        <span className="side">초</span>
+        {game.cho ?? '?'} <span className="side">vs 한</span>
+        {game.han ?? '?'}
+      </span>
+      {where && <span className="muted">{where}</span>}
+      {game.result && <span>{game.result}</span>}
+      {game.source && (
+        <a href={game.source} target="_blank" rel="noopener noreferrer nofollow">
+          대국 영상
+        </a>
+      )}
+    </div>
+  )
+}
+
+/** Plain comment text with "3챕터" turned into a link to that chapter of the same study */
+function chapterRefs(text: string, chapterLink: ChapterLink, key: number): ReactNode[] {
+  const out: ReactNode[] = []
+  let at = 0
+  for (const m of text.matchAll(/(\d+)챕터/g)) {
+    const href = chapterLink(+m[1])
+    if (!href) continue
+    out.push(text.slice(at, m.index))
+    out.push(
+      <a key={`${key}-${m.index}`} className="tv-chapter-link" href={href} onClick={(e) => e.stopPropagation()}>
+        {m[0]}
+      </a>,
+    )
+    at = m.index + m[0].length
+  }
+  out.push(text.slice(at))
+  return out
+}
+
+function CommentText({ node, cur, onSelect, chapterLink }: { node: ViewNode; cur: number; onSelect: (id: number) => void; chapterLink: ChapterLink }) {
   const text = node.comment ?? ''
-  if (!node.links) return <>{text}</>
+  if (!node.links) return <>{chapterRefs(text, chapterLink, 0)}</>
   const out: ReactNode[] = []
   let at = 0
   for (const l of node.links) {
-    out.push(text.slice(at, l.start))
+    out.push(...chapterRefs(text.slice(at, l.start), chapterLink, at))
     out.push(
       <span
         key={l.start}
@@ -403,6 +452,6 @@ function CommentText({ node, cur, onSelect }: { node: ViewNode; cur: number; onS
     )
     at = l.end
   }
-  out.push(text.slice(at))
+  out.push(...chapterRefs(text.slice(at), chapterLink, at))
   return <>{out}</>
 }

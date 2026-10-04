@@ -1,11 +1,14 @@
 // Editor for a user's own study: chapters on the left, the board in the middle (moves make the tree, right-drag
 // draws), and on the right the move list with the selected move's comment, glyph and position name.
 // Saved as the same text format as the official studies; the server checks every move.
+// A chapter can also hold a recorded game (players, event, result) that the owner may hand to the hourly researcher
+// for an engine analysis (accounts in server/data/requesters.txt only).
 import { useEffect, useMemo, useState } from 'react'
 import Board from './Board'
 import MoveList from './MoveList'
 import { SETUPS, sanOf, withBoard, type Setup } from './janggi'
 import { api, savedToken } from './net'
+import type { GameInfo } from './studyFormat'
 import { GLYPH_CHOICES, blankChapter, fromChapter, toArrows, toPgn, toShapes, type EditChapter, type Note } from './studyEdit'
 import { chapterHref, loadStudy, loadTopics, type Study } from './studyData'
 import { ROOT, addMove, deleteFrom, promote } from './tree'
@@ -24,6 +27,8 @@ export default function StudyEditor({ id, active, rulesReady }: { id: string; ac
   const [status, setStatus] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [allTopics, setAllTopics] = useState<string[]>([])
+  const [requests, setRequests] = useState<NonNullable<Study['requests']>>({})
+  const [requestNote, setRequestNote] = useState('')
   const [baseFlipped, setFlipped] = useState(false)
   const flipped = baseFlipped !== useHeldKey('KeyF', active)
 
@@ -37,6 +42,7 @@ export default function StudyEditor({ id, active, rulesReady }: { id: string; ac
       setTopics(s.topics)
       setPublished(!!s.published)
       setChapters(s.chapters.map(fromChapter))
+      setRequests(s.requests ?? {})
     })
     loadTopics().then((t) => setAllTopics(Object.keys(t)))
   }, [id, rulesReady])
@@ -151,6 +157,24 @@ export default function StudyEditor({ id, active, rulesReady }: { id: string; ac
       setSaving(false)
     }
   }
+  const setGame = (key: keyof GameInfo, v: string) =>
+    change((c) => {
+      const game = { ...c.game, [key]: v || undefined }
+      return { ...c, game: Object.values(game).some(Boolean) ? game : undefined }
+    })
+  const request = async (cancel = false) => {
+    try {
+      const r = await api<{ requests: NonNullable<Study['requests']> }>(`/user-studies/${id}/request`, savedToken(), {
+        chapter: ch.id,
+        note: requestNote,
+        cancel,
+      })
+      setRequests(r.requests)
+      setRequestNote('')
+    } catch (e) {
+      alert((e as Error).message)
+    }
+  }
   const remove = async () => {
     if (!confirm('이 연구를 지울까요? 되돌릴 수 없어요.')) return
     try {
@@ -254,6 +278,64 @@ export default function StudyEditor({ id, active, rulesReady }: { id: string; ac
             {status && <span className="editor-status">{status}</span>}
           </div>
         </div>
+        <details className="editor-game" key={ci} open={!!ch.game || undefined}>
+          <summary>대회 기보 (선택): 이 챕터가 실제 대국이면 대국 정보를 적어 주세요</summary>
+          <div className="editor-game-grid">
+            {(
+              [
+                ['cho', '초 대국자', '이름'],
+                ['han', '한 대국자', '이름'],
+                ['event', '대회', '예: 2026 전국장기대회'],
+                ['round', '라운드', '예: 결승'],
+                ['date', '날짜', ''],
+                ['result', '결과', '예: 한 승 (외통)'],
+                ['source', '영상 링크', 'https://…'],
+              ] as [keyof GameInfo, string, string][]
+            ).map(([key, label, hint]) => (
+              <label key={key} className={key === 'source' || key === 'event' ? 'wide' : ''}>
+                {label}
+                <input
+                  type={key === 'date' ? 'date' : key === 'source' ? 'url' : 'text'}
+                  value={ch.game?.[key] ?? ''}
+                  maxLength={key === 'source' ? 300 : 60}
+                  placeholder={hint}
+                  onChange={(e) => setGame(key, e.target.value)}
+                />
+              </label>
+            ))}
+          </div>
+          <div className="muted small">수순은 판에 그대로 두면 돼요. 본 수순(첫 줄)이 실제 기보로 읽혀요.</div>
+          {study.canRequest && (
+            <div className="editor-request">
+              {ch.id && requests[ch.id]?.answer ? (
+                <span>
+                  분석이 공개됐어요: <a href={`/study/${requests[ch.id].answer}`}>연구 보기</a>
+                </span>
+              ) : ch.id && requests[ch.id] ? (
+                <>
+                  <span>분석 대기 중 ({requests[ch.id].created}에 맡김). 매시 17분에 도는 연구자가 이어받아요.</span>
+                  <button className="btn" onClick={() => request(true)}>
+                    맡기기 취소
+                  </button>
+                </>
+              ) : (
+                <>
+                  <textarea
+                    rows={2}
+                    maxLength={500}
+                    value={requestNote}
+                    placeholder="연구자에게 남길 말 (선택, 예: 30수 근처를 중점적으로)"
+                    onChange={(e) => setRequestNote(e.target.value)}
+                  />
+                  <button className="btn primary" disabled={dirty || !ch.id || !ch.game?.cho || !ch.game?.han} onClick={() => request()}>
+                    분석 맡기기
+                  </button>
+                  {(dirty || !ch.id) && <span className="muted small">먼저 저장해 주세요</span>}
+                </>
+              )}
+            </div>
+          )}
+        </details>
       </section>
 
       <section className="study-side editor-side">

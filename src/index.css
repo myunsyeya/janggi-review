@@ -2612,3 +2612,83 @@ button {
   padding: 10px;
   font-size: 14px;
 }
+.editor-game {
+  background: var(--panel);
+  padding: 10px 14px;
+  margin-top: 8px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.editor-game summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.editor-game[open] summary {
+  margin-bottom: 10px;
+}
+.editor-game-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 10px;
+  margin-bottom: 6px;
+}
+.editor-game-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.editor-game-grid label.wide {
+  grid-column: span 2;
+}
+.editor-game input,
+.editor-request textarea {
+  background: #1f1e1c;
+  border: 1px solid #ffffff1f;
+  border-radius: 4px;
+  color: inherit;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 14px;
+  color-scheme: dark;
+}
+.editor-request {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--panel-line);
+}
+.editor-request textarea {
+  flex: 1 1 100%;
+}
+.editor-request a {
+  color: #9cc7f2;
+}
+.study-game {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  align-items: baseline;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--panel-line);
+  font-size: 13px;
+}
+.study-game .vs {
+  font-weight: 700;
+  font-size: 14px;
+}
+.study-game .side {
+  color: var(--muted);
+  font-weight: 400;
+  margin-right: 3px;
+}
+.study-game a {
+  color: #9cc7f2;
+}
+.tv-chapter-link {
+  color: #9cc7f2;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

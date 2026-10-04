@@ -5,7 +5,7 @@ import fs from 'node:fs'
 import type http from 'node:http'
 import path from 'node:path'
 import { SITE } from '../src/seo.ts'
-import { NOTATION_NOTE, chapterHtml, esc, short } from '../src/studyHtml.ts'
+import { NOTATION_NOTE, chapterHtml, esc, gameHtml, gamePeople, short } from '../src/studyHtml.ts'
 import { SEO_LIKES, getStudy, likesOf, listedStudies, viewStudy, type UserStudyDeps } from './userStudies.ts'
 
 let shell: { mtime: number; html: string } | null = null
@@ -56,7 +56,7 @@ export function handleUserStudyPage(d: UserStudyDeps, req: http.IncomingMessage,
         datePublished: view.created,
         dateModified: view.updated,
         image: SITE.url + SITE.image,
-        keywords: ['장기', 'Janggi', ...view.topics].join(', '),
+        keywords: ['장기', 'Janggi', ...view.topics, ...gamePeople(chapter.game)].join(', '),
       },
       {
         '@type': 'BreadcrumbList',
@@ -86,7 +86,7 @@ export function handleUserStudyPage(d: UserStudyDeps, req: http.IncomingMessage,
   const nav = `<nav>${view.chapters
     .map((c, j) => `<a href="${j === 0 ? `/study/${view.id}` : `/study/${view.id}/${c.id}`}">${j + 1}. ${esc(c.name)}</a>`)
     .join(' · ')}</nav>`
-  const body = `<h1>${esc(view.title)}: ${esc(chapter.name)}</h1><p>${esc(view.author)}의 연구 · 사용자 연구</p>${NOTATION_NOTE}<h2>수순과 해설</h2>${chapterHtml(chapter.root)}${nav}`
+  const body = `<h1>${esc(view.title)}: ${esc(chapter.name)}</h1><p>${esc(view.author)}의 연구 · 사용자 연구</p>${gameHtml(chapter.game)}${NOTATION_NOTE}<h2>수순과 해설</h2>${chapterHtml(chapter.root)}${nav}`
   html = html
     .replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`)
     .replace('<!--seo-head-->', head)
