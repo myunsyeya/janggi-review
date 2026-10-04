@@ -560,7 +560,7 @@ export default function Analysis({
           </section>
         )}
 
-        {tab === 'explorer' && <Explorer fen={fen} onPlay={play} />}
+        {tab === 'explorer' && <Explorer fen={fen} onPlay={play} onOpenRecord={onRecord} />}
         {record && <RecordBar record={record} onChange={(r) => (setRecord(r), setNames({ cho: r.cho, han: r.han }))} onDeleted={newGame} />}
         <OpeningBar opening={opening} />
         <MoveList

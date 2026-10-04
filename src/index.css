@@ -2743,6 +2743,7 @@ button {
   }
 }
 .upload-toggle {
+  flex: none;
   margin: 8px 10px 0;
 }
 .record-form {
@@ -2856,4 +2857,72 @@ button {
   color: var(--muted);
   font-size: 16px;
   cursor: pointer;
+}
+.explorer-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px 2px;
+}
+.explorer-tabs button {
+  background: none;
+  border: 1px solid #ffffff1f;
+  border-radius: 3px;
+  color: var(--muted);
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.explorer-tabs button.on {
+  background: #3893e8;
+  border-color: #3893e8;
+  color: #fff;
+}
+.explorer-tabs + .muted a {
+  color: #9cc7f2;
+}
+/* games without a known result leave this striped part of the bar */
+.explorer-bar {
+  background: repeating-linear-gradient(135deg, #5a5753 0 4px, #4a4744 4px 8px);
+}
+.explorer-games {
+  border-top: 1px solid var(--panel-line);
+  padding-bottom: 6px;
+}
+.explorer-games-head {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 8px 12px 4px;
+}
+.explorer-game {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 2px 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: inherit;
+  text-align: left;
+  padding: 5px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.explorer-game:hover {
+  background: var(--row-alt);
+}
+.eg-result {
+  font-weight: 700;
+  grid-row: span 2;
+}
+.eg-players {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.eg-move {
+  font-weight: 800;
+}
+.eg-event {
+  grid-column: 2 / 4;
+  font-size: 12px;
 }

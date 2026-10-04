@@ -10,6 +10,7 @@ import path from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 import { SETUPS, startFen, withBoard, type Setup } from '../src/janggi.ts'
 import { gameAnalysis } from './analysis.ts'
+import { rebuildRecords } from './explorer.ts'
 
 const PER_DAY = 10 // records one account may enter per day
 const MIN_PLIES = 10
@@ -173,6 +174,7 @@ export async function handleRecords(d: RecordDeps, req: http.IncomingMessage, re
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(id, me.id, cho, han, line, f.cho_name, f.han_name, f.event, f.round, f.date, f.result, f.reason, f.source, f.note, Date.now())
     gameAnalysis(start, moves) // the review is ready in a few minutes
+    rebuildRecords()
     json(res, 200, { id })
     return true
   }
@@ -209,11 +211,13 @@ export async function handleRecords(d: RecordDeps, req: http.IncomingMessage, re
       f.note,
       r.id,
     )
+    rebuildRecords() // the result may have changed
     return json(res, 200, { ok: true }), true
   }
   if (m[2] === 'delete') {
     if (!isAdmin(d, me) && !(owner && !studies(d)[r.id])) return json(res, 403, { error: '지울 수 없어요 (연구가 나온 기보는 운영자만 지울 수 있어요)' }), true
     db.prepare('DELETE FROM records WHERE id = ?').run(r.id)
+    rebuildRecords()
     return json(res, 200, { ok: true }), true
   }
   return false
