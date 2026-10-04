@@ -48,6 +48,6 @@ OTHER=$(git status --porcelain | awk '{print $2}' | grep -vE '^(content/studies/
 [[ -n "$OTHER" ]] && set_aside "changed files outside content/studies, research: $OTHER"
 npm run build || set_aside "build failed"
 
-MSG=$(echo "$OUT" | sed -n '/[^[:space:]]/{p;q;}' | cut -c1-120)
+MSG=$(echo "$OUT" | sed -n '/[^[:space:]]/{p;q;}' | perl -CSD -ne 'chomp; print substr($_, 0, 120)')
 git add content/studies research && git commit -q -m "${MSG:-연구 노트 $(date +%F)}" && git push -q origin main
 echo "published: $(git log --oneline -1)"
