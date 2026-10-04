@@ -18,7 +18,9 @@ import {
   choScore,
   choToMove,
   formatScore,
+  MAX_PLIES,
   isPass,
+  passedTwice,
   pointsResult,
   lineSan,
   material,
@@ -108,12 +110,19 @@ export default function Analysis({
 
   const position = useMemo(() => {
     if (!rulesReady) return null
+    // decided on points: both sides passed in a row, or the line reached MAX_PLIES moves (a FEN does not know this)
+    const line = pathTo(tree, cur).map((id) => tree.nodes[id].uci)
+    if (passedTwice(line) || line.length >= MAX_PLIES) {
+      const p = pointsResult(fen)
+      return { legal: [], over: true, result: p.result as string, reason: `${passedTwice(line) ? '양쪽 한수쉼' : `${MAX_PLIES}수`} · 점수 ${p.score}` }
+    }
     return withBoard(fen, (b) => ({
       legal: b.legalMoves().split(' ').filter(Boolean),
       over: b.isGameOver(),
       result: b.result(),
+      reason: undefined as string | undefined,
     }))
-  }, [fen, rulesReady])
+  }, [fen, rulesReady, tree, cur])
 
   // re-analyse whenever the shown position changes
   const pendingUi = useRef<EngineAnalysis | null>(null)
@@ -382,11 +391,14 @@ export default function Analysis({
   const mainResult = useMemo(() => {
     if (loadedResult && loadedResult.at === mainEnd) return loadedResult.label
     if (!rulesReady || mainEnd === ROOT) return null
+    const line = main.map((id) => tree.nodes[id].uci)
+    if (passedTwice(line) || line.length >= MAX_PLIES) {
+      const p = pointsResult(tree.nodes[mainEnd].fen)
+      return resultLabel(p.result, `${passedTwice(line) ? '양쪽 한수쉼' : `${MAX_PLIES}수`} · 점수 ${p.score}`)
+    }
     return withBoard(tree.nodes[mainEnd].fen, (b) => {
       if (!b.isGameOver()) return null
-      const line = main.map((id) => tree.nodes[id].uci)
-      const passes = line.length >= 2 && isPass(line.at(-1)!) && isPass(line.at(-2)!)
-      const reason = b.isCheck() && b.numberLegalMoves() === 0 ? "외통" : passes ? `양쪽 한수쉼 · 점수 ${pointsResult(tree.nodes[mainEnd].fen).score}` : "규칙"
+      const reason = b.isCheck() && b.numberLegalMoves() === 0 ? "외통" : "규칙"
       return resultLabel(b.result() as GameResult, reason)
     })
   }, [loadedResult, mainEnd, rulesReady, tree, main])
@@ -430,9 +442,8 @@ export default function Analysis({
   const resultText = () => {
     if (!position?.over) return null
     const r = position.result
-    if (r === '1-0') return '초 승'
-    if (r === '0-1') return '한 승'
-    return '무승부'
+    const head = r === '1-0' ? '초 승' : r === '0-1' ? '한 승' : '무승부'
+    return position.reason ? `${head} · ${position.reason}` : head
   }
 
   const onDelete = (id: number) => {

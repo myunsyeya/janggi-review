@@ -287,3 +287,9 @@ export function pointsResult(fen: string): { result: GameResult; score: string }
   const fmt = (x: number) => String(x)
   return { result: m.cho.score > m.han.score ? '1-0' : '0-1', score: `${fmt(m.cho.score)} : ${fmt(m.han.score)}` }
 }
+
+/**
+ * Both sides passed in a row: the game ends and is decided on points. Checked on the move list because a board
+ * built from a FEN does not know the move before it (the rules engine only sees passes played on the same board).
+ */
+export const passedTwice = (ucis: string[]) => ucis.length >= 2 && isPass(ucis[ucis.length - 1]) && isPass(ucis[ucis.length - 2])
