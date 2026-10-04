@@ -2926,3 +2926,109 @@ button {
   grid-column: 2 / 4;
   font-size: 12px;
 }
+
+/* --- study pages on a phone: board first, moves right under it, chapters folded ---------- */
+button.study-chapters-head {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 2px solid #e48d33;
+  font-family: inherit;
+  cursor: default;
+}
+.ch-narrow {
+  display: none;
+}
+@media (max-width: 900px) {
+  .study {
+    --st-board: min(calc((100vw - 16px) * 10.9 / 9.9), 70vh);
+    padding: 8px;
+    gap: 8px;
+  }
+  /* the board column's parts become grid items so they can be ordered around the move list */
+  .study-board {
+    display: contents;
+  }
+  .study-chapters {
+    order: 0;
+  }
+  .study-board-wrap {
+    order: 1;
+  }
+  .study-side {
+    order: 2;
+    height: max(320px, calc(100dvh - var(--st-board) - 150px));
+  }
+  .study-title {
+    order: 3;
+  }
+  .study-byline {
+    order: 4;
+    margin-top: -8px;
+  }
+  .study-topics {
+    order: 5;
+    margin-top: -8px;
+  }
+  button.study-chapters-head {
+    cursor: pointer;
+    padding: 10px 12px;
+    text-align: left;
+  }
+  .ch-wide {
+    display: none;
+  }
+  .ch-narrow {
+    display: inline;
+  }
+  .study-chapters:not(.open) li:not(.active) {
+    display: none;
+  }
+  .study-chapters ol {
+    max-height: none;
+  }
+  .study-title {
+    padding: 10px 12px;
+    font-size: 15px;
+  }
+
+  .studies {
+    padding: 12px;
+    gap: 12px;
+  }
+  .studies-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 4px;
+    padding: 0 0 4px;
+    scrollbar-width: none;
+  }
+  .studies-nav a {
+    flex: none;
+    white-space: nowrap;
+    padding: 6px 12px;
+    background: #ffffff0a;
+    border-radius: 14px;
+    font-size: 13px;
+  }
+  .studies-nav-title {
+    display: none;
+  }
+  .studies-head {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 16px;
+  }
+  .studies-head h1 {
+    flex: 1 1 100%;
+    font-size: 24px;
+  }
+  .studies-head select {
+    min-width: 0;
+    flex: 1;
+  }
+  .studies-head .study-create {
+    margin: 0;
+  }
+}

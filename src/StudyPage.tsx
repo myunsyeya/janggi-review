@@ -27,6 +27,8 @@ export default function StudyPage({
   const [study, setStudy] = useState<Study | null | undefined>(undefined)
   const [cur, setCur] = useState(0)
   const [baseFlipped, setFlipped] = useState(false)
+  const [chaptersOpen, setChaptersOpen] = useState(false)
+  useEffect(() => setChaptersOpen(false), [id, chapterId])
   const flipped = baseFlipped !== useHeldKey('KeyF', active)
   const [like, setLike] = useState<{ n: number; mine: boolean } | null>(null)
 
@@ -154,8 +156,14 @@ export default function StudyPage({
 
   return (
     <div className="study">
-      <aside className="study-chapters">
-        <div className="study-chapters-head">{study.chapters.length} 챕터</div>
+      <aside className={`study-chapters ${chaptersOpen ? 'open' : ''}`}>
+        {/* on a phone the list folds to the current chapter; the head opens it */}
+        <button className="study-chapters-head" onClick={() => setChaptersOpen((o) => !o)}>
+          <span className="ch-wide">{study.chapters.length} 챕터</span>
+          <span className="ch-narrow">
+            챕터 {study.chapters.indexOf(chapter) + 1} / {study.chapters.length} {chaptersOpen ? '▴' : '▾'}
+          </span>
+        </button>
         <ol>
           {study.chapters.map((c, i) => (
             <li key={c.id} className={c.id === chapter.id ? 'active' : ''}>
