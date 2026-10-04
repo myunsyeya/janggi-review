@@ -183,6 +183,8 @@ export function replay(fen: string, ucis: string[]) {
 
 export const PIECE_POINTS: Record<string, number> = { r: 13, c: 7, n: 5, b: 3, a: 3, p: 2, k: 0 }
 export const KOMI = 1.5 // 덤 for 한
+/** A game that reaches this many moves (both sides together, passes included) is decided on points */
+export const MAX_PLIES = 200
 const START_COUNT: Record<string, number> = { k: 1, a: 2, b: 2, n: 2, r: 2, c: 2, p: 5 }
 const CAPTURE_ORDER = ['r', 'c', 'n', 'b', 'a', 'p']
 
@@ -277,4 +279,11 @@ export function premoveTargets(fen: string, side: 'cho' | 'han'): string[] {
     for (const m of legal(f.join(' '))) if (parseUci(m).to === sq) out.add(m)
   }
   return [...out]
+}
+
+/** Decision on points (two passes in a row, or MAX_PLIES): the side with more points left wins; 덤 rules out a tie. */
+export function pointsResult(fen: string): { result: GameResult; score: string } {
+  const m = material(fen)
+  const fmt = (x: number) => String(x)
+  return { result: m.cho.score > m.han.score ? '1-0' : '0-1', score: `${fmt(m.cho.score)} : ${fmt(m.han.score)}` }
 }

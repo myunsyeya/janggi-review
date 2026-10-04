@@ -3,7 +3,7 @@ import { nameOpening, usePositionNames } from './openingNames'
 import Board from './Board'
 import MoveList from './MoveList'
 import type { GameImport } from './Analysis'
-import { type Setup, isPass, material, moveRaw, premoveTargets, resultLabel, parsePieces, parseUci, replay, startFen, withBoard } from "./janggi"
+import { MAX_PLIES, type Setup, isPass, material, pointsResult, moveRaw, premoveTargets, resultLabel, parsePieces, parseUci, replay, startFen, withBoard } from "./janggi"
 import { moveSound, playSound } from "./sound"
 import { Conn, api, saveToken, savedToken, type GameSummary, type GameView, type PublicUser, type Side } from './net'
 import { treeFromMoves } from "./tree"
@@ -281,6 +281,9 @@ export default function Play({
 
         {(inGame || game?.phase === 'over') && game?.startFen && game.moves.length > 0 && (
           <OpeningBar opening={nameOpening(game.startFen, game.moves, positionNames)} link={game.phase === 'over'} />
+        )}
+        {game?.phase === 'play' && game.startFen && (
+          <RuleNote game={game} mySide={mySide} fen={plies.at(-1)?.fen ?? game.startFen} />
         )}
         {inGame || game?.phase === 'over' ? (
           <MoveList
@@ -644,6 +647,25 @@ function ProfileCard({ me, token, onChange }: { me: PublicUser; token: string; o
         )}
         {error && <div className="error">{error}</div>}
       </div>
+    </div>
+  )
+}
+
+/** Reminders of the two ways a game is decided on points: both sides passing in a row, and MAX_PLIES moves */
+function RuleNote({ game, mySide, fen }: { game: GameView; mySide: Side | null; fen: string }) {
+  const n = game.moves.length
+  const opponentPassed = n > 0 && isPass(game.moves[n - 1]) && game.turn === mySide
+  const nearEnd = n >= MAX_PLIES - 40
+  if (!opponentPassed && !nearEnd) return null
+  const score = pointsResult(fen).score
+  return (
+    <div className="rule-note">
+      {opponentPassed && <div>상대가 한수쉼했어요. 나도 한수쉼하면 대국이 끝나고 점수로 승부가 나요 (초 : 한 = {score}, 한은 덤 1.5 포함).</div>}
+      {nearEnd && (
+        <div>
+          {MAX_PLIES}수까지 {MAX_PLIES - n}수 남았어요. {MAX_PLIES}수가 되면 점수가 높은 쪽이 이겨요 (지금 초 : 한 = {score}).
+        </div>
+      )}
     </div>
   )
 }

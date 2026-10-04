@@ -19,6 +19,7 @@ import {
   choToMove,
   formatScore,
   isPass,
+  pointsResult,
   lineSan,
   material,
   parseUci,
@@ -383,10 +384,12 @@ export default function Analysis({
     if (!rulesReady || mainEnd === ROOT) return null
     return withBoard(tree.nodes[mainEnd].fen, (b) => {
       if (!b.isGameOver()) return null
-      const reason = b.isCheck() && b.numberLegalMoves() === 0 ? "외통" : "규칙"
+      const line = main.map((id) => tree.nodes[id].uci)
+      const passes = line.length >= 2 && isPass(line.at(-1)!) && isPass(line.at(-2)!)
+      const reason = b.isCheck() && b.numberLegalMoves() === 0 ? "외통" : passes ? `양쪽 한수쉼 · 점수 ${pointsResult(tree.nodes[mainEnd].fen).score}` : "규칙"
       return resultLabel(b.result() as GameResult, reason)
     })
-  }, [loadedResult, mainEnd, rulesReady, tree])
+  }, [loadedResult, mainEnd, rulesReady, tree, main])
 
   // captured pieces and points (with 덤) for the player tags
   const mat = useMemo(() => material(fen), [fen])

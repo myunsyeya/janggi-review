@@ -6,7 +6,7 @@ import http from 'node:http'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { WebSocket, WebSocketServer } from 'ws'
-import { SETUPS, type Setup, choToMove, loadRules, sanOf, startFen, withBoard } from '../src/janggi.ts'
+import { MAX_PLIES, SETUPS, type Setup, choToMove, isPass, loadRules, pointsResult, sanOf, startFen, withBoard } from '../src/janggi.ts'
 import { INITIAL, update, type Rating } from './glicko2.ts'
 import { handleStudies, initStudies, type StudyDeps } from './studies.ts'
 import { clearExtra, handleUserStudies, initUserStudies, type UserStudyDeps } from './userStudies.ts'
@@ -335,7 +335,16 @@ function playMove(g: Game, side: Side, uci: string) {
   g.fen = res.fen
   analyseLive(res.fen) // review prepared in the background; never served before the game ends
   if (g.drawOffer === other(side)) g.drawOffer = null
-  if (res.over) return finish(g, res.result!, res.mate ? '외통' : res.bikjang ? '빅장' : '규칙')
+  if (res.over) {
+    // the rules end a game on two passes in a row and decide it on points
+    const passes = g.moves.length >= 2 && isPass(g.moves.at(-1)!) && isPass(g.moves.at(-2)!)
+    const reason = res.mate ? '외통' : res.bikjang ? '빅장' : passes ? `양쪽 한수쉼 · 점수 ${pointsResult(res.fen).score}` : '규칙'
+    return finish(g, res.result!, reason)
+  }
+  if (g.moves.length >= MAX_PLIES) {
+    const p = pointsResult(res.fen)
+    return finish(g, p.result, `${MAX_PLIES}수 · 점수 ${p.score}`)
+  }
   schedule(g)
   broadcast(g)
 }

@@ -3032,3 +3032,11 @@ button.study-chapters-head {
     margin: 0;
   }
 }
+.rule-note {
+  padding: 8px 12px;
+  background: #e48d331f;
+  color: #f0b37a;
+  font-size: 13px;
+  line-height: 1.5;
+  border-bottom: 1px solid var(--panel-line);
+}
