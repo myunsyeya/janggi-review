@@ -130,7 +130,7 @@ export default function Play({
   const atLive = shownPly === plies.length
   const legal = useMemo(() => {
     if (!rulesReady || !game || game.phase !== 'play' || !atLive || game.turn !== mySide) return []
-    // moves that would bring back an earlier position are not allowed (the server checks the same)
+    // the repetition rule (동일 수 3회 금지; the server checks the same)
     return legalNoRepeat(fen, positionsSeen(game.startFen!, game.moves))
   }, [rulesReady, game, atLive, mySide, fen])
 

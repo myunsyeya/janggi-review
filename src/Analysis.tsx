@@ -20,8 +20,8 @@ import {
   formatScore,
   MAX_PLIES,
   isPass,
+  countPosition,
   legalNoRepeat,
-  positionOf,
   passedTwice,
   pointsResult,
   lineSan,
@@ -118,8 +118,9 @@ export default function Analysis({
       const p = pointsResult(fen)
       return { legal: [], over: true, result: p.result as string, reason: `${passedTwice(line) ? '양쪽 한수쉼' : `${MAX_PLIES}수`} · 점수 ${p.score}` }
     }
-    // moves that would bring back an earlier position of this line are not allowed, as in a game
-    const seen = new Set([start, ...pathTo(tree, cur).map((id) => tree.nodes[id].fen)].map(positionOf))
+    // the repetition rule (동일 수 3회 금지) applies along this line, as in a game
+    const seen = new Map<string, number>()
+    for (const f of [start, ...pathTo(tree, cur).map((id) => tree.nodes[id].fen)]) countPosition(seen, f)
     const legal = legalNoRepeat(fen, seen)
     return withBoard(fen, (b) => {
       const mated = !b.isGameOver() && !legal.length // every move left would repeat

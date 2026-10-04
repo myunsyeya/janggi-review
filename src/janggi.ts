@@ -294,39 +294,51 @@ export function pointsResult(fen: string): { result: GameResult; score: string }
  */
 export const passedTwice = (ucis: string[]) => ucis.length >= 2 && isPass(ucis[ucis.length - 1]) && isPass(ucis[ucis.length - 2])
 
-// --- no repeated positions ------------------------------------------------------------
-// A move may not bring back a position (board and side to move) that already came up in the game, the same way a
-// move may not leave one's own 궁 in check. The rules engine does not do this from a FEN, so it is checked here.
-// 한수쉼 is exempt: two passes in a row bring the board back by design and end the game on points.
+// --- repetition (동일 수 반복 금지) ----------------------------------------------------------
+// "동일한 수를 3회 이상 반복할 수 없다. 단, 기물의 총 점수가 각각 30점 미만일 때에는 동일 수(반복장군 포함)를
+// 반복할 수 있다." (피망·한게임 장기 규칙). A move that would bring a position (board and side to move) about for
+// the third time is not allowed, the way a move may not leave one's own 궁 in check — unless both sides have fewer
+// than REPEAT_FREE_BELOW points on the board (덤 not counted). The rules engine cannot see this from a FEN, so it is
+// checked here. 한수쉼 is exempt: two passes in a row end the game on points instead.
+export const REPEAT_LIMIT = 3
+export const REPEAT_FREE_BELOW = 30
 
 /** Board and side to move: what counts as "the same position" */
 export const positionOf = (fen: string) => fen.split(' ').slice(0, 2).join(' ')
 
-/** The positions a game has been through: the start and the position after every move */
-export function positionsSeen(start: string, ucis: string[]): Set<string> {
+/** How often each position has come up in a game so far (the start and the position after every move) */
+export function positionsSeen(start: string, ucis: string[]): Map<string, number> {
   return withBoard(start, (b) => {
-    const seen = new Set([positionOf(start)])
+    const seen = new Map([[positionOf(start), 1]])
     for (const u of ucis) {
       b.push(u)
-      seen.add(positionOf(b.fen()))
+      countPosition(seen, b.fen())
     }
     return seen
   })
 }
+export const countPosition = (seen: Map<string, number>, fen: string) => seen.set(positionOf(fen), (seen.get(positionOf(fen)) ?? 0) + 1)
 
-/** Legal moves of a position, leaving out the ones that would repeat a position in `seen` */
-export function legalNoRepeat(fen: string, seen: Set<string>): string[] {
+/** Both sides below REPEAT_FREE_BELOW points: repetition is allowed */
+function repeatFree(fen: string) {
+  const m = material(fen)
+  return m.cho.score < REPEAT_FREE_BELOW && m.han.score - KOMI < REPEAT_FREE_BELOW
+}
+
+/** Legal moves of a position, leaving out the ones that would bring a position about for the REPEAT_LIMIT-th time */
+export function legalNoRepeat(fen: string, seen: Map<string, number>): string[] {
+  const free = repeatFree(fen)
   return withBoard(fen, (b) =>
     b
       .legalMoves()
       .split(' ')
       .filter(Boolean)
       .filter((u) => {
-        if (isPass(u)) return true
+        if (free || isPass(u)) return true
         b.push(u)
-        const again = seen.has(positionOf(b.fen()))
+        const times = seen.get(positionOf(b.fen())) ?? 0
         b.pop()
-        return !again
+        return times < REPEAT_LIMIT - 1
       }),
   )
 }
