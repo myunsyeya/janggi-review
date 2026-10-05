@@ -3,7 +3,7 @@
 # research/PROMPT.md, with permissions limited to content/studies and research/ by the settings file below;
 # this script then checks every move, deploys (build) and commits/pushes. Anything that fails is set aside
 # in a git stash instead of being published.
-#   on/off: the settings file exists or not.  test: touch research/.test-run (only checks that claude runs)
+#   on/off: the settings file exists or not. pause: a file named paused in the log folder (its first line says why).  test: touch research/.test-run (only checks that claude runs)
 set -u
 # launchd starts this every hour at :17; a run still going holds the lock and the next one skips
 APP="$HOME/janggi-review"
@@ -22,6 +22,7 @@ if [[ -f research/.test-run ]]; then
   exit 0
 fi
 if [[ ! -f "$SETTINGS" ]]; then echo "skip: no $SETTINGS (switched off)"; exit 0; fi
+if [[ -f "$LOGDIR/paused" ]]; then echo "skip: paused ($LOGDIR/paused: $(head -1 "$LOGDIR/paused"))"; exit 0; fi
 if [[ -n "$(git status --porcelain)" ]]; then echo "skip: working tree has uncommitted changes"; git status --short; exit 0; fi
 LOCK="$LOGDIR/.lock"
 if ! mkdir "$LOCK" 2>/dev/null; then echo "skip: another run is in progress"; exit 0; fi
