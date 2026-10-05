@@ -99,7 +99,7 @@ export default function StudyList({ topicSlug, mine = false, active }: { topicSl
             ))}
           </select>
         </header>
-        {(mine ? myStudies : all) && !list.length && <div className="muted pad">{mine ? '아직 쓴 연구가 없어요. 오른쪽 위의 "연구 만들기"로 시작해 보세요.' : '아직 연구가 없어요.'}</div>}
+        {(mine ? myStudies : all) && !list.length && <div className="muted pad">{mine ? '아직 쓴 연구가 없어요. 오른쪽 위의 "연구 만들기"로 시작해 보세요.' : '연구를 엔진(NNUE)으로 처음부터 다시 쓰고 있어요. 곧 새 연구가 올라와요.'}</div>}
         <div className="study-grid">
           {list.map((s) => {
             // under a topic, the chapters tagged with it come first and are highlighted
