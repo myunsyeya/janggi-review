@@ -52,11 +52,11 @@ export async function initAnalysis(database: DatabaseSync, root: string) {
     locateFile: (f: string) => dir + f,
     mainScriptUrlOrBlob: dir + 'stockfish.js',
   })
-  ;(sf as unknown as { FS: { writeFile(p: string, d: Buffer): void } }).FS.writeFile('/j.nnue', fs.readFileSync(path.join(engineDir, nnue)))
+  ;(sf as unknown as { FS: { writeFile(p: string, d: Buffer): void } }).FS.writeFile('/' + nnue, fs.readFileSync(path.join(engineDir, nnue)))
   sf!.addMessageListener((l) => onLine?.(l))
   for (const c of [
     'setoption name UCI_Variant value janggimodern',
-    'setoption name EvalFile value /j.nnue',
+    `setoption name EvalFile value /${nnue}`,
     'setoption name Threads value 3', // of 10 cores: the rest stay with the live games and the site
     'setoption name Hash value 64',
     `setoption name MultiPV value ${REVIEW_MULTIPV}`,

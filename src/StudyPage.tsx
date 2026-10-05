@@ -4,11 +4,12 @@ import Board, { type Arrow } from './Board'
 import { OpeningBar } from './OpeningBar'
 import { useOpening } from './openingNames'
 import { api, savedToken } from './net'
-import { isPass, parsePieces, parseUci, withBoard } from './janggi'
+import { ENGINE_HISTORY, choScore, engineKey, isPass, keyResult, parsePieces, parseUci, withBoard } from './janggi'
+import { getEngine, type Analysis as EngineAnalysis, type Engine } from './engine'
 import type { GameInfo } from './studyFormat'
 import { moveSound, playSound } from './sound'
 import { GLYPH_COLOR, SHAPE_COLOR, navigate, chapterHref, chapterNodes, loadStudy, loadTopics, moveLabel, topicHref, topicPath, type Study, type ViewNode } from './studyData'
-import { IconFirst, IconLast, IconNext, IconPrev, useHeldKey } from './ui'
+import { EvalBar, IconFirst, IconLast, IconNext, IconPrev, useHeldKey, type Score } from './ui'
 
 export default function StudyPage({
   id,
@@ -67,6 +68,19 @@ export default function StudyPage({
   }, [study, chapter])
 
   const node = nodes[cur]
+  // the engine's view of the position shown, as an eval bar (the engine is given the recent moves, see engineKey)
+  const [evalOn, setEvalOn] = useState(savedEvalOn)
+  const evalKey = useMemo(() => {
+    if (!node) return null
+    const recent: { uci: string; fen: string }[] = []
+    let n = node
+    while (n.parent !== null && recent.length < ENGINE_HISTORY) {
+      recent.unshift({ uci: n.uci, fen: n.fen })
+      n = nodes[n.parent]
+    }
+    return engineKey(n.fen, recent)
+  }, [node, nodes])
+  const score = useStudyEval(evalKey, node?.fen ?? null, evalOn && active)
   // moves only mentioned in comments are hidden: they are not offered as next moves, except to continue such a line
   const next = (n: ViewNode) => (n.hidden ? n.children : n.children.filter((c) => !nodes[c].hidden))
 
@@ -177,7 +191,9 @@ export default function StudyPage({
       </aside>
 
       <section className="study-board">
-        <div className="board-wrap study-board-wrap">
+        <div className="study-board-row">
+          {evalOn && <EvalBar score={score?.score ?? { cp: 0 }} flipped={flipped} hidden={!score} />}
+          <div className="board-wrap study-board-wrap">
           <Board
             fen={node.fen}
             legal={[]}
@@ -187,11 +203,22 @@ export default function StudyPage({
             interactive={false}
             onMove={() => {}}
           />
+          </div>
         </div>
         <div className="study-title">
           <span>
             {study.title}: {chapter.name}
           </span>
+          <button
+            className={`study-eval-toggle ${evalOn ? 'on' : ''}`}
+            title={score ? `엔진 평가 (깊이 ${score.depth})` : '엔진 평가 막대'}
+            onClick={() => {
+              setEvalOn(!evalOn)
+              saveEvalOn(!evalOn)
+            }}
+          >
+            평가
+          </button>
           <a className="study-notation" href="/notation" title="Hd3, ef4+ 같은 기보 읽는 법">
             표기법
           </a>
@@ -437,6 +464,58 @@ function chapterRefs(text: string, chapterLink: ChapterLink, key: number): React
   }
   out.push(text.slice(at))
   return out
+}
+
+const EVAL_KEY = 'janggi.studyEval'
+const STUDY_EVAL_DEPTH = 18
+function savedEvalOn() {
+  try {
+    return localStorage.getItem(EVAL_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
+function saveEvalOn(on: boolean) {
+  try {
+    localStorage.setItem(EVAL_KEY, on ? 'on' : 'off')
+  } catch {
+    /* not remembered */
+  }
+}
+
+/**
+ * The engine's evaluation of a position (by engine key) from 초's side, searched to a fixed depth so it settles.
+ * The last value stays until the new one comes, so the bar moves rather than blinks.
+ */
+function useStudyEval(key: string | null, fen: string | null, on: boolean) {
+  const [engine, setEngine] = useState<Engine | null>(null)
+  const [score, setScore] = useState<{ score: Score; depth: number } | null>(null)
+  useEffect(() => {
+    if (on && !engine) getEngine().then(setEngine, () => {}) // no engine (an old browser): no bar
+  }, [on, engine])
+  useEffect(() => {
+    if (!engine || !on || !key || !fen) return
+    const over = keyResult(key)
+    if (over) return setScore({ score: { mate: over.result === '1-0' ? 1 : -1 }, depth: 0 })
+    let raf = 0
+    let latest: EngineAnalysis | null = null
+    engine.analyze(
+      key,
+      (a) => {
+        latest = a
+        if (!raf)
+          raf = requestAnimationFrame(() => {
+            raf = 0
+            const best = latest?.lines[0]
+            if (best && latest!.depth >= 8) setScore({ score: choScore(fen, best), depth: latest!.depth })
+          })
+      },
+      { depth: STUDY_EVAL_DEPTH, multiPv: 1 },
+    )
+    return () => cancelAnimationFrame(raf)
+  }, [engine, on, key, fen])
+  useEffect(() => () => engine?.stop(), [engine])
+  return on ? score : null
 }
 
 function CommentText({ node, cur, onSelect, chapterLink }: { node: ViewNode; cur: number; onSelect: (id: number) => void; chapterLink: ChapterLink }) {

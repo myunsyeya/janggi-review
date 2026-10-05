@@ -9,13 +9,13 @@ const NNUE = path.join(__dirname, '../public/engine/janggi-9991472750de.nnue')
   const { HAN_LINES, REF_SETUP, interleave } = await import('../src/openingLines.ts')
   await loadRules({ wasmBinary: fs.readFileSync(path.join(__dirname, '../node_modules/ffish-es6/ffish.wasm')) })
   const sf = await require(D + 'stockfish.js')({ wasmBinary: fs.readFileSync(D + 'stockfish.wasm'), locateFile: (f) => D + f, mainScriptUrlOrBlob: D + 'stockfish.js' })
-  sf.FS.writeFile('/j.nnue', fs.readFileSync(NNUE))
+  sf.FS.writeFile('/' + path.basename(NNUE), fs.readFileSync(NNUE))
   let waiting = null, last = null
   sf.addMessageListener((l) => {
     if (l.startsWith('info') && l.includes(' score ') && l.includes(' pv ')) last = l
     if (l.startsWith('bestmove') && waiting) { const w = waiting; waiting = null; w(last) }
   })
-  for (const c of ['setoption name UCI_Variant value janggimodern', 'setoption name EvalFile value /j.nnue']) sf.postMessage(c)
+  for (const c of ['setoption name UCI_Variant value janggimodern', 'setoption name EvalFile value /' + path.basename(NNUE)]) sf.postMessage(c)
   const evalFen = (fen) => new Promise((res) => { waiting = res; last = null; sf.postMessage(`position fen ${fen}`); sf.postMessage('go depth 12') })
   const win = (line) => { const m = / score (cp|mate) (-?\d+)/.exec(line); if (!m) return 0.5; const v = +m[2]; return m[1] === 'mate' ? (v > 0 ? 1 : 0) : 1 / (1 + Math.exp(-0.00368208 * v)) }
   const start = startFen(REF_SETUP.cho, REF_SETUP.han)

@@ -2172,7 +2172,7 @@ button {
 
 .study {
   /* board height: what is left after the sidebar (76), chapters (280), side panel (380), two gaps and the margins */
-  --st-board: min(calc(100vh - 176px), calc((100vw - 76px - 280px - 380px - 56px - 80px) * 10.9 / 9.9));
+  --st-board: min(calc(100vh - 176px), calc((100vw - 76px - 280px - 380px - 56px - 80px - 30px) * 10.9 / 9.9));
   display: grid;
   grid-template-columns: 280px auto 380px;
   gap: 28px;
@@ -2426,7 +2426,7 @@ button {
 
 @media (max-width: 1200px) {
   .study {
-    --st-board: min(calc((100vw - 76px - 380px - 28px - 64px) * 10.9 / 9.9), calc(100vh - 176px));
+    --st-board: min(calc((100vw - 76px - 380px - 28px - 64px - 30px) * 10.9 / 9.9), calc(100vh - 176px));
     grid-template-columns: auto 380px;
     padding: 24px 32px;
   }
@@ -2942,7 +2942,7 @@ button.study-chapters-head {
 }
 @media (max-width: 900px) {
   .study {
-    --st-board: min(calc((100vw - 16px) * 10.9 / 9.9), 70vh);
+    --st-board: min(calc((100vw - 16px - 30px) * 10.9 / 9.9), 70vh);
     padding: 8px;
     gap: 8px;
   }
@@ -2953,7 +2953,7 @@ button.study-chapters-head {
   .study-chapters {
     order: 0;
   }
-  .study-board-wrap {
+  .study-board-row {
     order: 1;
   }
   .study-side {
@@ -3039,4 +3039,28 @@ button.study-chapters-head {
   font-size: 13px;
   line-height: 1.5;
   border-bottom: 1px solid var(--panel-line);
+}
+/* eval bar beside the study board */
+.study-board-row {
+  display: flex;
+  gap: 8px;
+}
+.study .evalbar {
+  flex: none;
+  width: 22px;
+  height: var(--st-board);
+  margin-top: 0;
+}
+.study-eval-toggle {
+  background: none;
+  border: 1px solid #ffffff2a;
+  border-radius: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 2px 7px;
+  cursor: pointer;
+}
+.study-eval-toggle.on {
+  color: #9cc7f2;
+  border-color: #9cc7f2;
 }

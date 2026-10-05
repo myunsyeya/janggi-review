@@ -22,12 +22,12 @@ export async function openEngine(opts: { multipv?: number; threads?: number; has
     locateFile: (f: string) => D + f,
     mainScriptUrlOrBlob: D + 'stockfish.js',
   })
-  sf.FS.writeFile('/j.nnue', fs.readFileSync(path.join(ROOT, 'public/engine', nnue)))
+  sf.FS.writeFile('/' + nnue, fs.readFileSync(path.join(ROOT, 'public/engine', nnue)))
   let onLine: ((l: string) => void) | null = null
   sf.addMessageListener((l: string) => onLine?.(l))
   for (const c of [
     'setoption name UCI_Variant value janggimodern',
-    'setoption name EvalFile value /j.nnue',
+    `setoption name EvalFile value /${nnue}`,
     `setoption name MultiPV value ${opts.multipv ?? 1}`,
     `setoption name Threads value ${opts.threads ?? 1}`,
     `setoption name Hash value ${opts.hash ?? 64}`,
