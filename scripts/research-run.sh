@@ -9,6 +9,9 @@ set -u
 APP="$HOME/janggi-review"
 SETTINGS="$HOME/.config/janggi-research/settings.json"
 LOGDIR="$HOME/Library/Logs/janggi-research"
+# a long-lived token from `claude setup-token`, if saved here (the keychain login expires and launchd cannot renew it)
+TOKEN_FILE="$HOME/.config/janggi-research/oauth-token"
+[[ -f "$TOKEN_FILE" ]] && export CLAUDE_CODE_OAUTH_TOKEN="$(tr -d '[:space:]' < "$TOKEN_FILE")"
 export PATH="$HOME/.local/node/bin:$HOME/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 mkdir -p "$LOGDIR"
 exec >>"$LOGDIR/$(date +%F).log" 2>&1
